@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Keyboard Wrapped</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">Keyboard Wrapped</p>
+        <h1>Year of Every Key</h1>
+        <p class="lede">
+          A Spotify Wrapped–style look at your keyboard. Visualize letters vs.
+          actions, rage bursts, and how your dial hit highs throughout the year.
+        </p>
+      </div>
+      <div class="alert" id="sample-alert" hidden>
+        Showing sample data. Run the logger and restart the UI to load your real stats.
+      </div>
+    </header>
+
+    <section class="cards">
+      <article>
+        <p>Total presses</p>
+        <h2 id="total-events">—</h2>
+      </article>
+      <article>
+        <p>Letters</p>
+        <h2 id="letters">—</h2>
+      </article>
+      <article>
+        <p>Actions (arrows, mods)</p>
+        <h2 id="actions">—</h2>
+      </article>
+      <article>
+        <p>Words formed</p>
+        <h2 id="words">—</h2>
+      </article>
+      <article>
+        <p>Rage bursts</p>
+        <h2 id="rage">—</h2>
+      </article>
+      <article>
+        <p>Long pauses</p>
+        <h2 id="pauses">—</h2>
+      </article>
+    </section>
+
+    <section class="charts">
+      <div>
+        <header>
+          <p>Top keys</p>
+          <p class="hint">Letters & modifiers that dominated the year</p>
+        </header>
+        <canvas id="key-chart" width="400" height="240"></canvas>
+      </div>
+      <div>
+        <header>
+          <p>Last 30 days</p>
+          <p class="hint">Daily pressure (press count per day)</p>
+        </header>
+        <canvas id="activity-chart" width="400" height="240"></canvas>
+      </div>
+    </section>
+
+    <section class="word-spotlight">
+      <div class="word-card">
+        <header>
+          <p>Words on repeat</p>
+          <p class="hint">The top words you type, shining in a Wrapped-worthy pie.</p>
+        </header>
+        <canvas id="word-chart" width="340" height="220"></canvas>
+      </div>
+      <div class="word-flow">
+        <header>
+          <p>Word transitions</p>
+          <p class="hint">What usually follows the word you just typed.</p>
+        </header>
+        <ul id="bigram-list"></ul>
+      </div>
+    </section>
+
+    <section class="story-feed">
+      <div class="story-intro">
+        <p class="eyebrow">Story feed</p>
+        <h2>Keyboard lore</h2>
+        <p class="lede">
+          GPT-inspired insights, standout days, and portrait snapshots pulled from your word rhythms.
+        </p>
+      </div>
+      <div class="story-cards" id="story-feed"></div>
+    </section>
+
+    <footer>
+      <p>Serve this folder with something like <code>python3 -m http.server</code> and point your browser to <code>ui/index.html</code>.</p>
+    </footer>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

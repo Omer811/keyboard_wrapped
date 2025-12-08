@@ -1,0 +1,230 @@
+:root {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  color: #0f172a;
+  background-color: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 2rem;
+  min-height: 100vh;
+  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.35), transparent 45%),
+    radial-gradient(circle at 20% 20%, rgba(236, 72, 153, 0.25), transparent 30%),
+    #0f172a;
+}
+
+header {
+  max-width: 960px;
+  margin: 0 auto 2rem;
+  color: #f8fafc;
+}
+
+.eyebrow {
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: #cbd5f5;
+  margin: 0;
+}
+
+.lede {
+  color: #e2e8f0;
+  max-width: 520px;
+  margin: 0.5rem 0 0;
+}
+
+.alert {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #1d4ed8;
+  color: #fff;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  max-width: 960px;
+  margin: 0 auto 2rem;
+}
+
+.cards article {
+  padding: 1.25rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #111827, #1e293b);
+  color: #f8fafc;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.6);
+}
+
+.cards h2 {
+  margin: 0.35rem 0 0;
+  font-size: 2rem;
+}
+
+.charts {
+  max-width: 960px;
+  margin: 0 auto;
+  display: grid;
+  gap: 2rem;
+}
+
+.charts > div {
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+}
+
+.charts header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.charts .hint {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+section.word-spotlight {
+  max-width: 960px;
+  margin: 2rem auto 3rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.word-card,
+.word-flow {
+  padding: 1.75rem;
+  border-radius: 1.5rem;
+  background: linear-gradient(150deg, rgba(15, 23, 42, 0.95), rgba(99, 102, 241, 0.35));
+  color: #f8fafc;
+  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.65);
+}
+
+.word-card header,
+.word-flow header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.word-flow {
+  display: flex;
+  flex-direction: column;
+}
+
+.word-flow ul {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.word-flow li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(248, 250, 252, 0.2);
+  padding-bottom: 0.35rem;
+  font-size: 0.95rem;
+}
+
+.word-flow li.muted {
+  color: #cbd5f5;
+}
+
+.word-flow .chain {
+  font-weight: 600;
+}
+
+.word-flow .value {
+  font-size: 0.9rem;
+  color: #a5b4fc;
+}
+
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+section.story-feed {
+  max-width: 960px;
+  margin: 2rem auto 3rem;
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  background: linear-gradient(150deg, rgba(15, 23, 42, 0.95), rgba(99, 102, 241, 0.2));
+  color: #f8fafc;
+  box-shadow: 0 35px 100px rgba(15, 23, 42, 0.7);
+  display: grid;
+  gap: 1.25rem;
+}
+
+.story-intro {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.story-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.story-card {
+  padding: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(248, 250, 252, 0.2);
+  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.2), transparent 60%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.6));
+  box-shadow: 0 15px 40px rgba(15, 23, 42, 0.45);
+  position: relative;
+  overflow: hidden;
+}
+
+.story-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.2), transparent 40%);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.story-card h3 {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.2rem;
+}
+
+.story-card p {
+  color: #e2e8f0;
+  margin: 0;
+}
+
+.story-tag {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent, #a855f7);
+  margin: 0;
+}
+
+footer {
+  max-width: 960px;
+  margin: 3rem auto 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  text-align: center;
+}

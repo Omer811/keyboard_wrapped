@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Keyboard Wrapped · Cube stories</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <p id="hero-eyebrow" class="eyebrow">Keyboard Wrapped · Cube stories</p>
+        <h1 id="hero-title">Cube Stories</h1>
+        <p id="hero-lede" class="lede">
+          Each cube is a chapter in your keyboard’s year. Scroll, reorder, and let the AI weave the stats into a narrative of your typing.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <p id="hero-cta">
+          Use the JSON config to reorder cubes, swap datasets, or change the AI copy—everything is driven by `config/app.json`.
+        </p>
+      </div>
+    </header>
+
+    <section class="control-panel">
+      <p id="control-hint" class="hint">
+        The cubes and datasets are controlled via <code>config/app.json</code>. Tune it to change the data or the story order.
+      </p>
+    </section>
+
+    <main id="cube-stack" class="cube-stack"></main>
+
+    <footer>
+      <p id="footer-note">
+        Serve with <code>python3 -m http.server</code> and open <code>ui/index.html</code>. Run <code>gpt_insights.py</code> (with <code>OPENAI_API_KEY</code>) to refresh the AI cube; the <code>data</code> folder ships with sample summaries and fallback replies for testing.
+      </p>
+    </footer>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

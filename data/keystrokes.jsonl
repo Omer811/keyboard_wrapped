@@ -1,0 +1,45 @@
+{"timestamp": "2025-12-07T18:02:43.813402+00:00", "key": "h", "category": "letter", "interval_ms": 0, "behaviors": {}, "duration_ms": 85}
+{"timestamp": "2025-12-07T18:02:43.929857+00:00", "key": "e", "category": "letter", "interval_ms": 116, "behaviors": {}, "duration_ms": 88}
+{"timestamp": "2025-12-07T18:02:44.034718+00:00", "key": "y", "category": "letter", "interval_ms": 104, "behaviors": {}, "duration_ms": 73}
+{"timestamp": "2025-12-07T18:02:44.198544+00:00", "key": "spac", "category": "action", "interval_ms": 163, "behaviors": {}, "duration_ms": 90}
+{"timestamp": "2025-12-07T18:02:44.364205+00:00", "key": "h", "category": "letter", "interval_ms": 165, "behaviors": {}, "duration_ms": 74}
+{"timestamp": "2025-12-07T18:02:44.499377+00:00", "key": "e", "category": "letter", "interval_ms": 135, "behaviors": {}, "duration_ms": 75}
+{"timestamp": "2025-12-07T18:02:44.558971+00:00", "key": "y", "category": "letter", "interval_ms": 59, "behaviors": {}, "duration_ms": 75}
+{"timestamp": "2025-12-07T18:02:44.724337+00:00", "key": "spac", "category": "action", "interval_ms": 165, "behaviors": {}, "duration_ms": 91}
+{"timestamp": "2025-12-07T18:02:44.903311+00:00", "key": "h", "category": "letter", "interval_ms": 178, "behaviors": {}, "duration_ms": 77}
+{"timestamp": "2025-12-07T18:02:45.055862+00:00", "key": "e", "category": "letter", "interval_ms": 152, "behaviors": {}, "duration_ms": 73}
+{"timestamp": "2025-12-07T18:02:45.114269+00:00", "key": "y", "category": "letter", "interval_ms": 58, "behaviors": {}, "duration_ms": 73}
+{"timestamp": "2025-12-07T18:02:45.819112+00:00", "key": "backspac", "category": "action", "interval_ms": 704, "behaviors": {}, "duration_ms": 76}
+{"timestamp": "2025-12-07T18:02:45.953133+00:00", "key": "backspac", "category": "action", "interval_ms": 134, "behaviors": {}, "duration_ms": 76}
+{"timestamp": "2025-12-07T18:02:46.074061+00:00", "key": "backspac", "category": "action", "interval_ms": 120, "behaviors": {}, "duration_ms": 74}
+{"timestamp": "2025-12-07T18:02:46.194584+00:00", "key": "backspac", "category": "action", "interval_ms": 120, "behaviors": {"rage_click": true}, "duration_ms": 74}
+{"timestamp": "2025-12-07T18:02:46.329102+00:00", "key": "backspac", "category": "action", "interval_ms": 134, "behaviors": {"rage_click": true}, "duration_ms": 59}
+{"timestamp": "2025-12-07T18:02:46.463993+00:00", "key": "backspac", "category": "action", "interval_ms": 134, "behaviors": {"rage_click": true}, "duration_ms": 60}
+{"timestamp": "2025-12-07T18:02:46.585488+00:00", "key": "backspac", "category": "action", "interval_ms": 121, "behaviors": {"rage_click": true}, "duration_ms": 57}
+{"timestamp": "2025-12-07T18:02:46.703255+00:00", "key": "backspac", "category": "action", "interval_ms": 117, "behaviors": {"rage_click": true}, "duration_ms": 75}
+{"timestamp": "2025-12-07T18:02:46.838817+00:00", "key": "backspac", "category": "action", "interval_ms": 135, "behaviors": {"rage_click": true}, "duration_ms": 75}
+{"timestamp": "2025-12-07T18:02:46.974156+00:00", "key": "backspac", "category": "action", "interval_ms": 135, "behaviors": {"rage_click": true}, "duration_ms": 76}
+{"timestamp": "2025-12-07T18:02:47.229223+00:00", "key": "backspac", "category": "action", "interval_ms": 255, "behaviors": {"rage_click": true}, "duration_ms": 89}
+{"timestamp": "2025-12-07T18:02:48.146521+00:00", "key": "h", "category": "letter", "interval_ms": 917, "behaviors": {}, "duration_ms": 42}
+{"timestamp": "2025-12-07T18:02:48.234095+00:00", "key": "e", "category": "letter", "interval_ms": 87, "behaviors": {}, "duration_ms": 90}
+{"timestamp": "2025-12-07T18:02:48.340416+00:00", "key": "l", "category": "letter", "interval_ms": 106, "behaviors": {}, "duration_ms": 58}
+{"timestamp": "2025-12-07T18:02:48.458049+00:00", "key": "l", "category": "letter", "interval_ms": 117, "behaviors": {}, "duration_ms": 91}
+{"timestamp": "2025-12-07T18:02:48.611896+00:00", "key": "o", "category": "letter", "interval_ms": 153, "behaviors": {}, "duration_ms": 86}
+{"timestamp": "2025-12-07T18:02:49.104556+00:00", "key": "w", "category": "letter", "interval_ms": 492, "behaviors": {}, "duration_ms": 74}
+{"timestamp": "2025-12-07T18:02:49.434261+00:00", "key": "?", "category": "letter", "interval_ms": 179, "behaviors": {}, "duration_ms": 64}
+{"timestamp": "2025-12-07T18:02:49.616362+00:00", "key": "?", "category": "letter", "interval_ms": 182, "behaviors": {}, "duration_ms": 47}
+{"timestamp": "2025-12-07T18:02:49.763825+00:00", "key": "?", "category": "letter", "interval_ms": 147, "behaviors": {}, "duration_ms": 104}
+{"timestamp": "2025-12-07T18:02:50.080806+00:00", "key": "?", "category": "letter", "interval_ms": 316, "behaviors": {"rage_click": true}, "duration_ms": 133}
+{"timestamp": "2025-12-07T18:02:49.254266+00:00", "key": "shift_r", "category": "action", "interval_ms": 149, "behaviors": {}, "duration_ms": 961}
+{"timestamp": "2025-12-07T18:02:50.545324+00:00", "key": "backspac", "category": "action", "interval_ms": 464, "behaviors": {}, "duration_ms": 75}
+{"timestamp": "2025-12-07T18:02:50.679162+00:00", "key": "backspac", "category": "action", "interval_ms": 133, "behaviors": {}, "duration_ms": 74}
+{"timestamp": "2025-12-07T18:02:50.814305+00:00", "key": "backspac", "category": "action", "interval_ms": 135, "behaviors": {}, "duration_ms": 74}
+{"timestamp": "2025-12-07T18:02:50.934191+00:00", "key": "backspac", "category": "action", "interval_ms": 119, "behaviors": {"rage_click": true}, "duration_ms": 75}
+{"timestamp": "2025-12-07T18:02:51.070664+00:00", "key": "backspac", "category": "action", "interval_ms": 136, "behaviors": {"rage_click": true}, "duration_ms": 74}
+{"timestamp": "2025-12-07T18:02:51.203495+00:00", "key": "backspac", "category": "action", "interval_ms": 132, "behaviors": {"rage_click": true}, "duration_ms": 75}
+{"timestamp": "2025-12-07T18:02:51.339382+00:00", "key": "backspac", "category": "action", "interval_ms": 135, "behaviors": {"rage_click": true}, "duration_ms": 74}
+{"timestamp": "2025-12-07T18:02:51.459025+00:00", "key": "backspac", "category": "action", "interval_ms": 119, "behaviors": {"rage_click": true}, "duration_ms": 105}
+{"timestamp": "2025-12-07T18:02:51.668692+00:00", "key": "backspac", "category": "action", "interval_ms": 209, "behaviors": {"rage_click": true}, "duration_ms": 90}
+{"timestamp": "2025-12-07T18:02:52.539633+00:00", "key": "backspac", "category": "action", "interval_ms": 870, "behaviors": {}, "duration_ms": 75}
+{"timestamp": "2025-12-07T18:02:53.996408+00:00", "key": "ctrl", "category": "action", "interval_ms": 1456, "behaviors": {}, "duration_ms": 650}
+{"timestamp": "2025-12-07T18:02:54.639884+00:00", "key": "c", "category": "letter", "interval_ms": 643, "behaviors": {}, "duration_ms": 6}
