@@ -22,4 +22,4 @@ The GPT script looks for an API key in `OPENAI_API_KEY` before it ever reads `co
 
 ## Netlify builds
 
-Add `cp config/app.json ui/config/app.json` to any Netlify build step (or just run `./run_gpt_ui.sh --netlify`) so the UI can fetch `./config/app.json` after deployment. The script’s `--netlify` flag now performs this copy automatically before launching the UI, while local runs still fall back to `../config/app.json` without modifying `ui/`.
+Netlify runs the command defined in `netlify.toml`, which copies `config/app.json` into `ui/config/app.json` before publishing the `ui/` folder. That lets the deployed UI fetch `./config/app.json` without falling back to `../config/app.json`, so you no longer get a 404. During local development you can still use `./run_gpt_ui.sh --netlify` (or omit `--netlify`) to keep the config copy and dev server in sync.
