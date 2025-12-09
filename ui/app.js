@@ -67,16 +67,57 @@ const DEFAULT_VISUAL = {
   story_card_width: 320,
 };
 let CURRENT_VISUAL = { ...DEFAULT_VISUAL };
+const CONFIG_STATUS_EL = document.getElementById("config-status");
+let configStatusTimer = null;
 
-function resolveAssetPath(rawPath) {
-  if (!rawPath) return rawPath;
-  if (rawPath.startsWith("http") || rawPath.startsWith("/")) {
-    return rawPath;
+function buildAssetCandidates(rawPath) {
+  const trimmed = (rawPath || "").trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith("http") || trimmed.startsWith("/")) {
+    return [trimmed];
   }
-  if (rawPath.startsWith("../")) {
-    return rawPath;
+  const cleaned = trimmed.replace(/^(\.\/)+/, "").replace(/^(\.\.\/)+/, "");
+  const candidates = [];
+  const add = (value) => {
+    if (!value) return;
+    if (!candidates.includes(value)) {
+      candidates.push(value);
+    }
+  };
+  add(`./${cleaned}`);
+  add(`../${cleaned}`);
+  if (trimmed.startsWith("./") || trimmed.startsWith("../")) {
+    add(trimmed);
   }
-  return `../${rawPath}`;
+  return candidates.filter(Boolean);
+}
+
+async function loadJsonWithFallback(candidates, label = "asset") {
+  const attempts = [];
+  for (const candidate of candidates) {
+    try {
+      const payload = await loadJson(candidate);
+      updateConfigStatus(`Loaded ${label} from ${candidate}`, "info");
+      return payload;
+    } catch (error) {
+      attempts.push({ candidate, error });
+      console.warn(`Asset fetch failed for ${candidate}:`, error);
+    }
+  }
+  const error = new Error(
+    attempts.length
+      ? `Unable to load ${label} after ${attempts.length} attempts.`
+      : `No ${label} candidates provided.`
+  );
+  error.attempts = attempts;
+  throw error;
+}
+
+async function fetchGPTInsight(candidates) {
+  if (!Array.isArray(candidates) || !candidates.length) {
+    throw new Error("No GPT insight path configured.");
+  }
+  return loadJsonWithFallback(candidates, "GPT insight");
 }
 
 function applyUiText(uiText = {}) {
@@ -102,6 +143,22 @@ function applyStoryCardWidth(value) {
   const fallback = DEFAULT_VISUAL.story_card_width;
   const width = Number.isFinite(Number(value)) ? Math.max(220, Number(value)) : fallback;
   document.documentElement.style.setProperty("--story-card-width", `${width}px`);
+}
+
+function updateConfigStatus(message, tone = "info", sticky = false) {
+  if (!CONFIG_STATUS_EL) return;
+  CONFIG_STATUS_EL.textContent = message;
+  CONFIG_STATUS_EL.classList.toggle("error", tone === "error");
+  CONFIG_STATUS_EL.classList.add("active");
+  if (configStatusTimer) {
+    clearTimeout(configStatusTimer);
+    configStatusTimer = null;
+  }
+  if (tone === "info" && !sticky) {
+    configStatusTimer = setTimeout(() => {
+      CONFIG_STATUS_EL.classList.remove("active");
+    }, 4000);
+  }
 }
 
 function formatNumber(value) {
@@ -152,15 +209,34 @@ async function loadJson(url) {
 }
 
 async function loadConfig() {
-  let lastError = null;
+  const attempts = [];
   for (const candidate of CONFIG_URLS) {
     try {
-      return await loadJson(candidate);
+      const result = await loadJson(candidate);
+      updateConfigStatus(`Config loaded from ${candidate}`, "info");
+      return result;
     } catch (error) {
-      lastError = error;
+      console.warn(`Config fetch failed for ${candidate}:`, error);
+      attempts.push({ candidate, error });
     }
   }
-  throw lastError || new Error("Unable to load config");
+  const last = attempts[attempts.length - 1];
+  const fallbackError = new Error(
+    last
+      ? `Unable to load config after ${attempts.length} attempts; last try ${last.candidate}`
+      : "Unable to load config"
+  );
+  fallbackError.attempts = attempts;
+  if (last) {
+    updateConfigStatus(
+      `Unable to load config. Last try: ${last.candidate} (${last.error.message})`,
+      "error",
+      true
+    );
+  } else {
+    updateConfigStatus("Unable to load config.", "error", true);
+  }
+  throw fallbackError;
 }
 
 function averageInterval(summary) {
@@ -1000,7 +1076,7 @@ function buildPresserCube(container, summary) {
   container.appendChild(percent);
 }
 
-async function buildGPTCube(container, summary, mode, gptUrl) {
+async function buildGPTCube(container, summary, mode, gptCandidates) {
   const box = document.createElement("div");
   box.className = "gpt-box";
   const status = document.createElement("p");
@@ -1017,11 +1093,12 @@ async function buildGPTCube(container, summary, mode, gptUrl) {
   box.appendChild(message);
   container.appendChild(box);
   try {
-    const payload = await fetchGPTInsight(gptUrl);
+    const payload = await fetchGPTInsight(gptCandidates);
     status.textContent = `AI (${mode} mode)`;
     message.textContent = payload.analysis;
-  } catch {
+  } catch (error) {
     status.textContent = "AI insight missing";
+    updateConfigStatus(`AI insight unavailable: ${error.message}`, "error", true);
   }
 }
 
@@ -1075,13 +1152,6 @@ function highlight_word_day(summary) {
   return best;
 }
 
-async function fetchGPTInsight(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("GPT result missing");
-  }
-  return response.json();
-}
 
 function attachStoryHighlight(grid) {
   if (!grid) return;
@@ -1126,14 +1196,19 @@ async function init() {
     applyUiText(CURRENT_UI_TEXT);
     const mode = config.mode === "sample" ? "sample" : "real";
     const data = config.data || {};
-    const summaryPath = resolveAssetPath(data[`${mode}_summary`] || DEFAULT_SUMMARY_PATH);
-    const gptPath = resolveAssetPath(data[`${mode}_gpt`] || DEFAULT_GPT_PATH);
+    const summaryCandidates = buildAssetCandidates(
+      data[`${mode}_summary`] || DEFAULT_SUMMARY_PATH
+    );
+    const gptCandidates = buildAssetCandidates(
+      data[`${mode}_gpt`] || DEFAULT_GPT_PATH
+    );
     let summary = null;
     let summaryError = null;
     try {
-      summary = await loadJson(summaryPath);
+      summary = await loadJsonWithFallback(summaryCandidates, "summary");
     } catch (error) {
       summaryError = error;
+      updateConfigStatus(`Summary load failed: ${error.message}`, "error", true);
     }
     const stack = document.getElementById("cube-stack");
     stack.innerHTML = "";
@@ -1142,11 +1217,20 @@ async function init() {
       .sort((a, b) => (a.order || 0) - (b.order || 0));
     cubes.forEach((cube) => {
       if (cube.enabled === false) return;
-      buildCube(cube, stack, summary, summaryError, gptPath, mode);
+      buildCube(cube, stack, summary, summaryError, gptCandidates, mode);
     });
   } catch (error) {
     const stack = document.getElementById("cube-stack");
-    stack.innerHTML = `<p class="hint">Unable to load config: ${error.message}</p>`;
+    let detailHtml = "";
+    if (Array.isArray(error.attempts) && error.attempts.length) {
+      detailHtml = `<ul class="config-error-list">${error.attempts
+        .map(
+          (attempt) =>
+            `<li>${attempt.candidate}: ${attempt.error.message || attempt.error}</li>`
+        )
+        .join("")}</ul>`;
+    }
+    stack.innerHTML = `<p class="hint config-error">Unable to load config: ${error.message}</p>${detailHtml}`;
   }
 }
 

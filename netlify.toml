@@ -1,5 +1,5 @@
- [build]
-   command = "mkdir -p ui/config && cp config/app.json ui/config/app.json"
+[build]
+  command = "mkdir -p ui/config ui/data && cp config/app.json ui/config/app.json && cp -R data/. ui/data/"
   publish = "ui"
 
 [dev]

@@ -88,6 +88,8 @@ prepare_netlify_assets() {
     echo "Preparing Netlify assets..."
     mkdir -p ui/config
     cp "$CONFIG_FILE" ui/config/app.json
+    mkdir -p ui/data
+    cp -R data/. ui/data/
   fi
 }
 
