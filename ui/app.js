@@ -1,4 +1,4 @@
-const CONFIG_URL = "../config/app.json";
+const CONFIG_URLS = ["./config/app.json", "../config/app.json"];
 const DEFAULT_SUMMARY_PATH = "../data/summary.json";
 const DEFAULT_GPT_PATH = "../data/gpt_insights.json";
 const WORD_CHART_COLORS = ["#fb7185", "#f472b6", "#a855f7", "#22d3ee", "#4ade80", "#fde68a"];
@@ -149,6 +149,18 @@ async function loadJson(url) {
     throw new Error(`${url} (${response.status})`);
   }
   return response.json();
+}
+
+async function loadConfig() {
+  let lastError = null;
+  for (const candidate of CONFIG_URLS) {
+    try {
+      return await loadJson(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("Unable to load config");
 }
 
 function averageInterval(summary) {
@@ -1107,7 +1119,7 @@ function buildCube(cubeConfig, stack, summary, summaryError, gptUrl, mode) {
 
 async function init() {
   try {
-    const config = await loadJson(CONFIG_URL);
+    const config = await loadConfig();
     CURRENT_UI_TEXT = config.ui_text || {};
     CURRENT_VISUAL = { ...DEFAULT_VISUAL, ...(config.visual || {}) };
     applyStoryCardWidth(CURRENT_VISUAL.story_card_width);

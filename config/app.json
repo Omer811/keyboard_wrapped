@@ -81,7 +81,7 @@
       "group": "word",
       "label": "Word transitions",
       "description": "The most frequent paths between words.",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "layout",

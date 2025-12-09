@@ -4,6 +4,7 @@ set -euo pipefail
 CONFIG_FILE="config/app.json"
 PORT=8000
 MODE_OVERRIDE=""
+NETLIFY_FLAG=false
 
 usage() {
   cat <<EOF
@@ -30,6 +31,10 @@ while [[ $# -gt 0 ]]; do
     --port)
       PORT="$2"
       shift 2
+      ;;
+    --netlify)
+      NETLIFY_FLAG=true
+      shift
       ;;
     --help|-h)
       usage
@@ -78,6 +83,14 @@ cleanup_mode() {
   fi
 }
 
+prepare_netlify_assets() {
+  if [[ "$NETLIFY_FLAG" == "true" ]]; then
+    echo "Preparing Netlify assets..."
+    mkdir -p ui/config
+    cp "$CONFIG_FILE" ui/config/app.json
+  fi
+}
+
 ORIGINAL_MODE="$(read_mode)"
 MODE="${MODE_OVERRIDE:-$ORIGINAL_MODE}"
 REVERT_MODE=""
@@ -94,5 +107,6 @@ else
   python3 gpt_insights.py
 fi
 
+prepare_netlify_assets
 echo "Launching UI..."
 ./run.sh --port "$PORT"

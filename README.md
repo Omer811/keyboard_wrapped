@@ -19,3 +19,7 @@ Every cube is controlled through `config/app.json`, so you can rearrange them, f
 ## OpenAI integration
 
 The GPT script looks for an API key in `OPENAI_API_KEY` before it ever reads `config/app.json`, so you can keep your credential entirely outside the repository. Set it like `export OPENAI_API_KEY=sk-…` before running `./run_gpt_ui.sh` or `python3 gpt_insights.py`. If you need to store the key locally, keep it in a shell rc file (`~/.zshrc`, `~/.bash_profile`, etc.) and **do not commit that file** to Git—the default config now omits the key so it can stay private.
+
+## Netlify builds
+
+Add `cp config/app.json ui/config/app.json` to any Netlify build step (or just run `./run_gpt_ui.sh --netlify`) so the UI can fetch `./config/app.json` after deployment. The script’s `--netlify` flag now performs this copy automatically before launching the UI, while local runs still fall back to `../config/app.json` without modifying `ui/`.
