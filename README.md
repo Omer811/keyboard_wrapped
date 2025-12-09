@@ -15,3 +15,7 @@ Keyboard Wrapped is a professional mockup for presenting a full-year, AI-enhance
 - **Word Heatmap:** luminous bubbles whose colors map frequency and diversity; clicking one draws its flow so you can read the cadence.
 
 Every cube is controlled through `config/app.json`, so you can rearrange them, flip between datasets, and refresh the GPT narration without touching the UI code.
+
+## OpenAI integration
+
+The GPT script looks for an API key in `OPENAI_API_KEY` before it ever reads `config/app.json`, so you can keep your credential entirely outside the repository. Set it like `export OPENAI_API_KEY=sk-…` before running `./run_gpt_ui.sh` or `python3 gpt_insights.py`. If you need to store the key locally, keep it in a shell rc file (`~/.zshrc`, `~/.bash_profile`, etc.) and **do not commit that file** to Git—the default config now omits the key so it can stay private.
