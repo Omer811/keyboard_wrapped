@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 import os
 import textwrap
@@ -45,6 +46,38 @@ def resolve_paths(config: Dict[str, Any], mode: str) -> Dict[str, Path]:
         )
     )
     return {"summary": summary_path, "output": output_path}
+
+
+def summary_hash(summary: Dict[str, Any]) -> str:
+    payload = json.dumps(summary, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def insight_meta_path(output_path: Path) -> Path:
+    return output_path.with_suffix(output_path.suffix + ".meta")
+
+
+def load_meta(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        return load_json(path)
+    except Exception:
+        return {}
+
+
+def write_meta(path: Path, summary_hash_value: str, success: bool):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(
+            {
+                "summary_hash": summary_hash_value,
+                "last_success": success,
+            },
+            fh,
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 def top_words(summary: Dict[str, Any], limit=5):
@@ -207,15 +240,17 @@ def build_prompt(summary: Dict[str, Any]):
     hold_text = format_key_hold_summary(key_holds)
     prompt = textwrap.dedent(
         f"""\
-        Analyze the following keyboard summary data and return:
-        1. A persona label grounded in the data.
-        2. A keyboard proficiency estimate.
-        3. Top five favorite words with a quick note.
-        4. Top five fastest words (by average duration).
-        5. Standout days (rage bursts or word storms).
-        6. A suggestion for a new layout using adjacency info.
+        You are KeyboardAI. Analyze the following keyboard summary data and respond with JSON only.
+        Address the user directly using "you" (no references to "the writer" or third-person). Keep the response insightful and playful—fun but sharp.
+        Provide an "analysis_text" string and an "insights" array.
+        Each insight must have "tag", "title", "body" covering:
+        - A persona label and why you call the typist that.
+        - A keyboard age estimate described humorously, referencing speed/presses/pauses.
+        - Tempo notes (wpm, intervals, long holds) describing how it feels to type like you do.
+        - Favorite words with quick commentary and the vibe they create for you.
+        - Fastest words with durations, standout days, and layout thoughts for your most fluent transitions.
 
-        Keyboard age: {age} years. Explain how the speed, letter holds, long pauses, and favorite words support that guess.
+        Return valid JSON only and keep it double-quoted. No markdown wrappers.
 
         Total presses: {summary.get('total_events')}
         Letters: {summary.get('letters')}, Actions: {summary.get('actions')}
@@ -229,7 +264,7 @@ def build_prompt(summary: Dict[str, Any]):
         Word transitions: {', '.join(transitions) if transitions else '—'}
         Key adjacency: {', '.join(adjacencies) if adjacencies else '—'}
         Key dwellers: {hold_text}
-        Keyboard interface story: Sketch a vivid narrative of how the typist physically engages the keyboard, leaning on the dwell stats, the pauses, and the rhythm of the keys.
+        Keyboard interface story: Sketch a vivid narrative of how you physically engage the keyboard, leaning on dwell stats and rhythm.
         """
     )
     return prompt
@@ -269,10 +304,97 @@ def fallback_analysis(summary: Dict[str, Any], sample_mode=False):
     return " ".join(parts)
 
 
-def write_insight(text: str, path: Path):
+def fallback_structured(summary: Dict[str, Any], sample_mode=False):
+    analysis_text = fallback_analysis(summary, sample_mode=sample_mode)
+    insights = [
+        persona_insight_card(summary),
+        keyboard_age_card(summary),
+        tempo_card(summary),
+        vocabulary_card(summary),
+        rhythm_card(summary),
+    ]
+    return {"analysis_text": analysis_text, "insights": insights}
+
+
+def persona_insight_card(summary: Dict[str, Any]):
+    total = max(summary.get("total_events", 1), 1)
+    letter_ratio = summary.get("letters", 0) / total
+    rage_ratio = summary.get("rage_clicks", 0) / total
+    word_counts = summary.get("word_counts", {})
+    signature = (
+        max(word_counts.items(), key=lambda item: item[1])[0]
+        if word_counts
+        else "your cadence"
+    )
+    if rage_ratio > 0.02:
+        title = "Blazing Editor"
+        body = f"Rapid edits stand out while \"{signature}\" anchors your tempo spikes."
+    elif letter_ratio > 0.85:
+        title = "Midnight Wordsmith"
+        body = f"Long-form letters dominate and \"{signature}\" is your poetic motif."
+    elif summary.get("actions", 0) / total > 0.35:
+        title = "Navigator"
+        body = f"Modifiers and navigation keys stay busy while \"{signature}\" steadies your path."
+    else:
+        title = "Steady Storyteller"
+        body = f"`{signature}` keeps your balanced sessions resilient."
+    return {"tag": "Persona", "title": title, "body": body}
+
+
+def keyboard_age_card(summary: Dict[str, Any]):
+    age = keyboard_age_from_speed(summary)
+    typing = typing_profile(summary)
+    return {
+        "tag": "Keyboard age",
+        "title": f"{age} years",
+        "body": (
+            f"Speed {typing['wpm']} WPM, {typing['avg_interval']}ms pauses, "
+            f"and {typing['avg_press_length']}ms holds support this age."
+        ),
+    }
+
+
+def tempo_card(summary: Dict[str, Any]):
+    typing = typing_profile(summary)
+    return {
+        "tag": "Tempo",
+        "title": f"{typing['wpm']} WPM rhythm",
+        "body": (
+            f"Long pause rate is {typing['long_pause_rate'] * 100:.1f}% while spells stay compact "
+            f"({typing['avg_press_length']}ms) for fluent typing."
+        ),
+    }
+
+
+def vocabulary_card(summary: Dict[str, Any]):
+    top = top_words(summary, limit=3)
+    words = ", ".join(word for word, _ in top) or "No words yet"
+    return {
+        "tag": "Vocabulary",
+        "title": "Top words",
+        "body": f"{words} define your narrative and signal what your keyboard loves.",
+    }
+
+
+def rhythm_card(summary: Dict[str, Any]):
+    rage = highlight_rage_day(summary)
+    word_day = highlight_word_day(summary)
+    parts = []
+    if rage:
+        parts.append(f"Rage peak on {rage[0]} with {rage[1]} bursts.")
+    if word_day:
+        parts.append(f"{word_day['date']} featured {word_day['topWord']} {word_day['topValue']} times.")
+    body = " ".join(parts) if parts else "No standout rhythms yet."
+    return {"tag": "Rhythm", "title": "Rhythm story", "body": body}
+
+
+def write_insight(text: str, structured: Dict[str, Any], path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"analysis_text": text}
+    if structured:
+        payload["structured"] = structured
     with open(path, "w", encoding="utf-8") as fh:
-        json.dump({"analysis": text}, fh, ensure_ascii=False, indent=2)
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
 
 
 def call_openai(prompt: str, config: Dict[str, Any]):
@@ -282,6 +404,25 @@ def call_openai(prompt: str, config: Dict[str, Any]):
     api_key = gpt_cfg.get("api_key") or os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("No OpenAI API key found in config.")
+
+    if openai_supports_new_api():
+        client_cls = getattr(openai, "OpenAI", None)
+        if client_cls is None:
+            raise ValueError("Unable to instantiate OpenAI client for the installed SDK.")
+        client = client_cls(api_key=api_key)
+        response = client.chat.completions.create(
+            model=gpt_cfg.get("model", "gpt-4o-mini"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a keyboard analyst; be concise and insightful.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=gpt_cfg.get("temperature", 0.4),
+        )
+        return response.choices[0].message.content
+
     openai.api_key = api_key
     response = openai.ChatCompletion.create(
         model=gpt_cfg.get("model", "gpt-4o-mini"),
@@ -295,6 +436,27 @@ def call_openai(prompt: str, config: Dict[str, Any]):
         temperature=gpt_cfg.get("temperature", 0.4),
     )
     return response.choices[0].message.content
+
+
+def openai_supports_new_api():
+    ver = getattr(openai, "__version__", "")
+    if not ver:
+        return False
+    try:
+        major = int(ver.split(".")[0])
+        return major >= 1
+    except ValueError:
+        return False
+
+
+def parse_structured_response(text: str) -> Dict[str, Any]:
+    try:
+        payload = json.loads(text)
+        if isinstance(payload, dict):
+            return payload
+    except json.JSONDecodeError:
+        pass
+    return {}
 
 
 def run():
@@ -315,23 +477,50 @@ def run():
         )
     output_path = args.output or paths["output"]
     summary = load_json(summary_path)
+    summary_hash_value = summary_hash(summary)
+    meta_path = insight_meta_path(output_path)
+    existing_meta = load_meta(meta_path)
+    if (
+        existing_meta.get("summary_hash") == summary_hash_value
+        and existing_meta.get("last_success")
+        and output_path.exists()
+    ):
+        print(
+            f"Summary unchanged ({summary_hash_value}); skipping GPT call and using existing insight."
+        )
+        return
 
     gpt_config = config.get("gpt", {})
-    use_sample_insight = mode == "sample" or not gpt_config.get("api_key")
-    if use_sample_insight:
-        text = fallback_analysis(summary, sample_mode=mode == "sample")
-        write_insight(text, output_path)
+    api_key = gpt_config.get("api_key") or os.environ.get("OPENAI_API_KEY")
+    structured = {}
+    if not api_key:
+        text = fallback_analysis(summary, sample_mode=(mode == "sample"))
+        structured = fallback_structured(summary, sample_mode=(mode == "sample"))
+        write_insight(text, structured, output_path)
+        write_meta(meta_path, summary_hash_value, success=False)
         print(f"Wrote fallback insight to {output_path}")
+        print("  (No OpenAI API key configured; fallback insight generated from local heuristics.)")
         return
 
     prompt = build_prompt(summary)
+    print(f"GPT request stats: prompt {len(prompt)} chars, {len(prompt.encode('utf-8'))} bytes; summary has {len(json.dumps(summary))} chars")
     try:
-        analysis = call_openai(prompt, config)
+        raw = call_openai(prompt, config)
+        structured = parse_structured_response(raw)
+        analysis_text = structured.get("analysis_text") or raw
     except Exception as exc:
+        err_msg = getattr(exc, "args", None)
         print(f"OpenAI request failed: {exc}")
-        analysis = fallback_analysis(summary)
+        print(f"OpenAI error payload: {err_msg}")
+        analysis_text = fallback_analysis(summary)
+        structured = fallback_structured(summary, sample_mode=(mode == "sample"))
+        success = False
+        print("Generated fallback insight because the OpenAI request did not succeed.")
+    else:
+        success = True
 
-    write_insight(analysis, output_path)
+    write_insight(analysis_text, structured, output_path)
+    write_meta(meta_path, summary_hash_value, success=success)
     print(f"Wrote AI insight to {output_path}")
 
 

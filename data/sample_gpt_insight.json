@@ -1,3 +1,33 @@
 {
-  "analysis": "Keyboard age: 6.2 years, with 139.5 WPM, 430.0ms median pauses, and 199.3ms key holds. Top words: craft, spark, echo. Fastest words: code, glimmer, night. Long pauses strike at roughly 0.6% of presses. Word shapes: craft avg hold 309ms across 6 runs, spark avg hold 322ms across 4 runs. Top transitions: night->craft (455), spark->code (449). Key dwellers: H 254ms over 492 hits, ENTER 241ms over 391 hits. Rage peak on 2023-05-20 with 44 bursts. Word feast on 2023-08-10 with glimmer 208 times. Offline sample insight keeps the AI cube populated."
+  "analysis_text": "Buckle up, keyboard maestro! You're a symphony of keystrokes, crafting poetry with every tap. Let's dive into your keyboard world!",
+  "structured": {
+    "analysis_text": "Buckle up, keyboard maestro! You're a symphony of keystrokes, crafting poetry with every tap. Let's dive into your keyboard world!",
+    "insights": [
+      {
+        "tag": "persona",
+        "title": "The Typing Sorcerer",
+        "body": "You conjure words like spells, transforming thoughts into text with a flick of your fingers. The typing incantations you cast are nothing short of magical!"
+      },
+      {
+        "tag": "keyboard_age",
+        "title": "Eternally Young at Heart",
+        "body": "With presses numbering nearly 400k, you’ve aged like a fine wine—roughly 13 years in keyboard time. Speeding along at 139.5 wpm, your fingers dance like they’re at a youth party, but let’s not mention those rage bursts—44 in a day? Oops!"
+      },
+      {
+        "tag": "tempo_notes",
+        "title": "Rhythm of the Keys",
+        "body": "Your typing feels like a jazz ensemble—smooth yet spontaneous. With an average interval of 430ms, you glide in and out of thoughts, enjoying every note while never holding too long. Long pauses? Just a whisper in your rhythm!"
+      },
+      {
+        "tag": "favorite_words",
+        "title": "Word Wizards",
+        "body": "Your favorites—craft, spark, echo—are like the cool kids at the word party. They evoke creativity, motivation, and nostalgic resonance; each word is a vibe, effortlessly inviting inspiration to join the fun!"
+      },
+      {
+        "tag": "fastest_words",
+        "title": "Lightning Fast Secrets",
+        "body": "Top speedsters like 'code' at 331ms and 'glimmer' at 354ms are your secret weapons. Remember that standout day, 2023-08-10? Your fingers flaunted 'glimmer' like a runway model! Those transitions are poetry in motion—each layout a well-rehearsed dance."
+      }
+    ]
+  }
 }

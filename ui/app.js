@@ -64,6 +64,7 @@ const DEFAULT_VISUAL = {
   word_flow_neighbors: 3,
   layout_neighbor_limit: 3,
   layout_show_full_adjacency: false,
+  story_card_width: 320,
 };
 let CURRENT_VISUAL = { ...DEFAULT_VISUAL };
 
@@ -95,6 +96,12 @@ function applyUiText(uiText = {}) {
   setContent("hero-cta", uiText.hero_cta);
   setContent("control-hint", uiText.control_hint, true);
   setContent("footer-note", uiText.footer_note, true);
+}
+
+function applyStoryCardWidth(value) {
+  const fallback = DEFAULT_VISUAL.story_card_width;
+  const width = Number.isFinite(Number(value)) ? Math.max(220, Number(value)) : fallback;
+  document.documentElement.style.setProperty("--story-card-width", `${width}px`);
 }
 
 function formatNumber(value) {
@@ -464,7 +471,11 @@ function buildStoryCube(container, summary, mode, gptUrl) {
   container.appendChild(wrapper);
   const renderCards = (cards) => {
     grid.innerHTML = "";
-    cards.forEach((card) => grid.appendChild(createStoryCard(card)));
+    cards.forEach((card) => {
+      const node = createStoryCard(card);
+      grid.appendChild(node);
+    });
+    attachStoryHighlight(grid);
   };
 
   const fallbackCards = computeStoryCards(summary);
@@ -500,8 +511,19 @@ function buildStoryCube(container, summary, mode, gptUrl) {
 function createStoryCard(card) {
   const block = document.createElement("article");
   block.className = "story-card";
-  block.innerHTML = `<p class="story-tag">${card.tag}</p><h3>${card.title}</h3><p>${card.body}</p>`;
+  const formattedTag = formatStoryTag(card.tag);
+  block.innerHTML = `<p class="story-tag">${formattedTag}</p><h3>${card.title}</h3><p>${card.body}</p>`;
   return block;
+}
+
+function formatStoryTag(text) {
+  if (!text) return "";
+  return text
+    .replace(/[_-]+/g, " ")
+    .split(" ")
+    .map((word) => (word ? `${word[0].toUpperCase()}${word.slice(1)}` : ""))
+    .filter(Boolean)
+    .join(" ");
 }
 
 function buildTransitions(summary) {
@@ -520,7 +542,7 @@ function buildLayoutCube(container, summary) {
   const description = document.createElement("p");
   description.className = "hint";
   description.textContent =
-    "Mac-inspired frame, modifiers locked in place, letters flow to keep both hands active.";
+    "Reframing of your keyboard, modifiers locked in place, letters flow to keep both hands active.";
   container.appendChild(description);
 
   const adjacency = computeAdjacency(summary);
@@ -763,26 +785,9 @@ function colorFromFrequency(count, maxCount, diversity) {
 function buildHeatmapFlowPanel(shapes) {
   const panel = document.createElement("div");
   panel.className = "word-flow-panel";
-  const header = document.createElement("div");
-  header.className = "word-flow-header";
-  const title = document.createElement("h3");
-  const meta = document.createElement("p");
-  meta.className = "hint";
-  meta.textContent =
-    CURRENT_UI_TEXT.heatmap_flow_hint ||
-    "Tap a word to reveal its heartbeat and letter pulse.";
-  header.appendChild(title);
-  panel.appendChild(header);
-  const info = document.createElement("div");
-  info.className = "word-flow-meta";
-  const countEl = document.createElement("span");
-  info.appendChild(countEl);
-  panel.appendChild(info);
-  panel.appendChild(attrElement("p", "hint", "Word shapes"));
   const shapeHolder = document.createElement("div");
   shapeHolder.className = "word-flow-shape";
   panel.appendChild(shapeHolder);
-  panel.appendChild(meta);
   function updateWordShape(word, count) {
     shapeHolder.innerHTML = "";
     const card = createWordShapeCard(word, count, shapes[word] || []);
@@ -791,8 +796,6 @@ function buildHeatmapFlowPanel(shapes) {
 
   function update(word, count) {
     if (!word) return;
-    title.textContent = word;
-    countEl.textContent = `${formatNumber(count)} hits`;
     updateWordShape(word, count);
   }
 
@@ -801,10 +804,18 @@ function buildHeatmapFlowPanel(shapes) {
 function createWordShapeCard(word, count, records) {
   const card = document.createElement("article");
   card.className = "word-shape-card";
-  const heading = document.createElement("div");
-  heading.className = "word-shape-heading";
-  heading.innerHTML = `<strong>${word}</strong><span>${formatNumber(count)} hits</span>`;
-  card.appendChild(heading);
+
+  const countRow = document.createElement("div");
+  countRow.className = "word-shape-count-row";
+  const label = document.createElement("span");
+  label.className = "word-shape-word-label";
+  label.textContent = word;
+  const hits = document.createElement("strong");
+  hits.textContent = `${formatNumber(count)} hits`;
+  countRow.appendChild(label);
+  countRow.appendChild(hits);
+  card.appendChild(countRow);
+
   const row = document.createElement("div");
   row.className = "word-shape-row";
   const averages = computeWordLetterAverages(records, word.length);
@@ -817,16 +828,7 @@ function createWordShapeCard(word, count, records) {
     return span;
   });
   card.appendChild(row);
-  const meta = document.createElement("p");
-  meta.className = "word-shape-meta";
-  const average =
-    averages.filter(Boolean).length > 0
-      ? Math.round(averages.reduce((sum, value) => sum + value, 0) / averages.length)
-      : 0;
-  meta.textContent = average
-    ? `Avg letter hold ${average}ms across ${records.length} runs.`
-    : "Collect more shapes to see the flow.";
-  card.appendChild(meta);
+
   const durationGraph = document.createElement("canvas");
   durationGraph.className = "word-shape-duration-graph";
   durationGraph.height = 60;
@@ -1069,6 +1071,35 @@ async function fetchGPTInsight(url) {
   return response.json();
 }
 
+function attachStoryHighlight(grid) {
+  if (!grid) return;
+  const cards = Array.from(grid.children);
+  const updateActive = () => {
+    const containerRect = grid.getBoundingClientRect();
+    const centerX = containerRect.left + containerRect.width / 2;
+    let closest = null;
+    let minDistance = Infinity;
+    cards.forEach((card) => {
+      const rect = card.getBoundingClientRect();
+      const cardCenter = rect.left + rect.width / 2;
+      const distance = Math.abs(centerX - cardCenter);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closest = card;
+      }
+    });
+    cards.forEach((card) =>
+      card.classList.toggle("story-card--active", card === closest)
+    );
+  };
+  if (grid.__storyHighlight__) {
+    grid.removeEventListener("scroll", grid.__storyHighlight__);
+  }
+  grid.__storyHighlight__ = updateActive;
+  grid.addEventListener("scroll", updateActive, { passive: true });
+  requestAnimationFrame(updateActive);
+}
+
 function buildCube(cubeConfig, stack, summary, summaryError, gptUrl, mode) {
   const cube = createCubeElement(cubeConfig, summary, summaryError, gptUrl, mode);
   stack.appendChild(cube);
@@ -1079,6 +1110,7 @@ async function init() {
     const config = await loadJson(CONFIG_URL);
     CURRENT_UI_TEXT = config.ui_text || {};
     CURRENT_VISUAL = { ...DEFAULT_VISUAL, ...(config.visual || {}) };
+    applyStoryCardWidth(CURRENT_VISUAL.story_card_width);
     applyUiText(CURRENT_UI_TEXT);
     const mode = config.mode === "sample" ? "sample" : "real";
     const data = config.data || {};
