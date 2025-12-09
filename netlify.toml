@@ -1,0 +1,6 @@
+ [build]
+   command = "mkdir -p ui/config && cp config/app.json ui/config/app.json"
+  publish = "ui"
+
+[dev]
+  command = "bash run_gpt_ui.sh --mode sample"
