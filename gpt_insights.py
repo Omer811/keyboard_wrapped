@@ -464,6 +464,7 @@ def run():
     parser.add_argument("--mode", choices=["real", "sample"], help="Override the configured data mode.")
     parser.add_argument("--summary", type=Path, help="Explicit summary file to read.")
     parser.add_argument("--output", type=Path, help="Where to write the AI insight JSON.")
+    parser.add_argument("--netlify", action="store_true", help="(ignored) compatibility hook for `run_gpt_ui.sh --netlify`.")
     args = parser.parse_args()
 
     config = load_config()

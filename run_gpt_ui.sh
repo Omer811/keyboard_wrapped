@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
       PORT="$2"
       shift 2
       ;;
-    --netlify)
+    --netlify|--netify)
       NETLIFY_FLAG=true
       shift
       ;;
