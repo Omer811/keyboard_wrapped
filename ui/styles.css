@@ -560,9 +560,40 @@ header.hero {
 
 .story-grid {
   margin-top: 1.5rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  display: flex;
   gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 0.75rem;
+}
+
+.story-grid::-webkit-scrollbar {
+  height: 8px;
+}
+
+.story-grid::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 999px;
+}
+
+.story-grid-wrapper {
+  position: relative;
+}
+
+.story-grid-wrapper::before,
+.story-grid-wrapper::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.95), transparent);
+}
+
+.story-grid-wrapper::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(15, 23, 42, 0.95), transparent);
 }
 
 .story-card {

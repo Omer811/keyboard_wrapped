@@ -7,19 +7,19 @@
     "sample_gpt": "data/sample_gpt_insight.json"
   },
   "gpt": {
-    "api_key": "",
+    "api_key": "literal:",
     "model": "gpt-4o-mini",
-    "temperature": 0.75
+    "temperature": 0.9
   },
   "ui_text": {
-    "hero_eyebrow": "Keyboard Wrapped · AI first",
-    "hero_title": "Cube Stories",
-    "hero_lede": "The AI insight is first—run `gpt_insights.py` (with a real API key) before exploring the other cubes so the persona and age arrive with context.",
-    "hero_cta": "Use this JSON to reorder cubes, swap datasets, or refresh the GPT narrative.",
-    "control_hint": "Set `gpt.api_key` before running `gpt_insights.py` so the AI cube comes alive with varied responses (temperature 0.75).",
-    "footer_note": "Serve with <code>python3 -m http.server</code> and open <code>ui/index.html</code>. Run <code>gpt_insights.py</code> (with <code>OPENAI_API_KEY</code>) to refresh the AI cube; the <code>data</code> folder includes sample summaries and fallback replies for testing.",
-    "ai_cube_subtitle": "Persona & keyboard age",
-    "heatmap_flow_hint": "Tap a bubble to reveal its flow map."
+    "hero_eyebrow": "Keyboard Pulse",
+    "hero_title": "Keyboard Wrapped Studio",
+    "hero_lede": "Dive into a beautifully curated story of your typing year—each cube is a chapter of insight, performance, and style.",
+    "hero_cta": "Refresh this layout by editing the cubes and visuals definitions; the AI narrative stays front and center.",
+    "control_hint": "Drag through the cubes, reorder them visually, and admire the stats—everything is designed for storytelling.",
+    "footer_note": "A mockup experience for demoing AI-assisted keyboard insights—no instructions required.",
+    "ai_cube_subtitle": "Persona · Keyboard age",
+    "heatmap_flow_hint": "Tap a bubble to reveal the heartbeat behind each word."
   },
   "visual": {
     "word_pie_limit": 20,
@@ -41,11 +41,11 @@
       "group": "research",
       "label": "AI analysis",
       "description": "Persona & keyboard age",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "overview",
-      "order": 10,
+      "order": 70,
       "group": "core",
       "label": "Overview pulse",
       "description": "Totals, letter/action split, rage, pauses, and timing averages.",
@@ -61,15 +61,15 @@
     },
     {
       "id": "story",
-      "order": 30,
+      "order": 10,
       "group": "word",
-      "label": "Story feed",
+      "label": "Story Feed",
       "description": "Keyboard age, persona, rage highlight, and vocabulary story.",
       "enabled": true
     },
     {
       "id": "words",
-      "order": 40,
+      "order": 60,
       "group": "word",
       "label": "Word choreography",
       "description": "Favorite words rendered as a doughnut.",
@@ -85,7 +85,7 @@
     },
     {
       "id": "layout",
-      "order": 50,
+      "order": 30,
       "group": "research",
       "label": "Layout lab",
       "description": "Suggested keyboard layout with actual modifiers preserved.",
@@ -93,7 +93,7 @@
     },
     {
       "id": "presser",
-      "order": 55,
+      "order": 25,
       "group": "research",
       "label": "Pressure profile",
       "description": "Are you a heavy presser or a light touch typist?",
@@ -101,7 +101,7 @@
     },
     {
       "id": "heatmap",
-      "order": 60,
+      "order": 35,
       "group": "research",
       "label": "Word heatmap",
       "description": "Bubble clusters sized by frequency and diversity.",

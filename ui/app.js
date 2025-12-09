@@ -455,16 +455,53 @@ function summarizePersona(summary) {
   };
 }
 
-function buildStoryCube(container, summary) {
+function buildStoryCube(container, summary, mode, gptUrl) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "story-grid-wrapper";
   const grid = document.createElement("div");
   grid.className = "story-grid";
-  computeStoryCards(summary).forEach((card) => {
-    const block = document.createElement("article");
-    block.className = "story-card";
-    block.innerHTML = `<p class="story-tag">${card.tag}</p><h3>${card.title}</h3><p>${card.body}</p>`;
-    grid.appendChild(block);
-  });
-  container.appendChild(grid);
+  wrapper.appendChild(grid);
+  container.appendChild(wrapper);
+  const renderCards = (cards) => {
+    grid.innerHTML = "";
+    cards.forEach((card) => grid.appendChild(createStoryCard(card)));
+  };
+
+  const fallbackCards = computeStoryCards(summary);
+  renderCards(fallbackCards);
+
+  if (!gptUrl) {
+    return;
+  }
+
+  fetchGPTInsight(gptUrl)
+    .then((payload) => {
+      const structured = payload?.structured;
+      if (structured?.insights?.length) {
+        renderCards(structured.insights);
+      } else if (payload?.analysis_text) {
+        renderCards([
+          {
+            tag: "AI narrative",
+            title: mode === "sample" ? "Sample insight" : "AI narrative",
+            body: payload.analysis_text.trim(),
+          },
+        ]);
+      }
+    })
+    .catch(() => {
+      const hint = document.createElement("p");
+      hint.className = "hint";
+      hint.textContent = "AI insight missing; run the GPT script with an API key.";
+      container.appendChild(hint);
+    });
+}
+
+function createStoryCard(card) {
+  const block = document.createElement("article");
+  block.className = "story-card";
+  block.innerHTML = `<p class="story-tag">${card.tag}</p><h3>${card.title}</h3><p>${card.body}</p>`;
+  return block;
 }
 
 function buildTransitions(summary) {
