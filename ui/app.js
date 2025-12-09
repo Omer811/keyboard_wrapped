@@ -58,7 +58,7 @@ const builders = {
 
 let CURRENT_UI_TEXT = {};
 const DEFAULT_VISUAL = {
-  word_pie_limit: 6,
+  word_pie_limit: 20,
   transition_limit: 8,
   heatmap_top_words: 24,
   word_flow_neighbors: 3,
@@ -300,6 +300,11 @@ function buildKeysCube(container, summary) {
   container.appendChild(wrapper);
   buildKeyChart(keyCanvas, summary);
   buildActivityChart(activityCanvas, summary);
+  const hint = document.createElement("p");
+  hint.className = "hint";
+  hint.textContent =
+    "Daily pressure stacks each day’s total key activity so you can spot high-energy spikes, long stretches, or sudden calm days.";
+  container.appendChild(hint);
 }
 
 function buildWordChart(canvas, summary) {
@@ -338,25 +343,6 @@ function buildWordsCube(container, summary) {
   chartWrapper.appendChild(wordCanvas);
   container.appendChild(chartWrapper);
   buildWordChart(wordCanvas, summary);
-
-  const highlightPanel = document.createElement("div");
-  highlightPanel.className = "word-highlight-panel";
-  const highlights = Object.entries(summary.word_counts || {})
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, Math.max(3, CURRENT_VISUAL.word_pie_limit || 6));
-  highlights.forEach(([word, count]) => {
-    const row = document.createElement("div");
-    row.className = "word-highlight-row";
-    row.innerHTML = `<strong>${word}</strong><span>${formatNumber(count)} hits</span>`;
-    highlightPanel.appendChild(row);
-  });
-  if (!highlights.length) {
-    const hint = document.createElement("p");
-    hint.className = "hint";
-    hint.textContent = "Start typing to surface favorite words.";
-    highlightPanel.appendChild(hint);
-  }
-  container.appendChild(highlightPanel);
 }
 
 function buildTransitionsCube(container, summary) {
@@ -565,13 +551,13 @@ function buildLayoutCube(container, summary) {
   }
 
   function colorForNeighbor(isBefore, ratio) {
-    const baseHue = isBefore ? 348 : 146;
-    const hue = baseHue + (isBefore ? -ratio * 12 : -ratio * 18);
-    const saturation = 72 + ratio * 12;
-    const lightness = 58 - ratio * 18;
+    const baseHue = isBefore ? 340 : 190;
+    const hue = baseHue + (isBefore ? -ratio * 10 : ratio * 12);
+    const saturation = 68 + ratio * 15;
+    const lightness = 60 - ratio * 12;
     return `hsla(${Math.round(hue)}, ${Math.round(Math.min(Math.max(saturation, 60), 92))}%, ${Math.round(
-      Math.max(lightness, 30)
-    )}%, 0.9)`;
+      Math.max(lightness, 33)
+    )}%, 0.85)`;
   }
 
   layoutRows.forEach((row, rowIndex) => {
@@ -785,12 +771,13 @@ function createWordShapeCard(word, count, records) {
   const row = document.createElement("div");
   row.className = "word-shape-row";
   const averages = computeWordLetterAverages(records, word.length);
-  word.split("").forEach((letter, index) => {
+  const spans = word.split("").map((letter, index) => {
     const span = document.createElement("span");
     const duration = averages[index] || 0;
     span.style.background = wordShapeLetterColor(duration);
     span.textContent = letter.toUpperCase();
     row.appendChild(span);
+    return span;
   });
   card.appendChild(row);
   const meta = document.createElement("p");
@@ -803,6 +790,21 @@ function createWordShapeCard(word, count, records) {
     ? `Avg letter hold ${average}ms across ${records.length} runs.`
     : "Collect more shapes to see the flow.";
   card.appendChild(meta);
+  const durationGraph = document.createElement("canvas");
+  durationGraph.className = "word-shape-duration-graph";
+  durationGraph.height = 60;
+  card.appendChild(durationGraph);
+
+  requestAnimationFrame(() => {
+    const targetWidth = Math.max(200, word.length * 40);
+    row.style.width = `${targetWidth}px`;
+    durationGraph.width = targetWidth;
+    durationGraph.style.width = `${targetWidth}px`;
+    const positions = computeGraphXPositions(word.length, targetWidth, 14);
+    drawDurationGraph(durationGraph, averages, positions, word);
+    positionLetters(spans, positions);
+  });
+
   return card;
 }
 
@@ -820,6 +822,55 @@ function computeWordLetterAverages(records, length) {
     });
   });
   return totals.map((total, index) => (counts[index] ? total / counts[index] : 0));
+}
+
+function drawDurationGraph(canvas, averages, positions, word) {
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const maxDuration = Math.max(...averages, 1);
+  const padding = 14;
+  ctx.lineWidth = 3;
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  gradient.addColorStop(0, "rgba(147, 51, 234, 0.9)");
+  gradient.addColorStop(1, "rgba(34, 197, 94, 0.9)");
+  ctx.strokeStyle = gradient;
+  ctx.beginPath();
+  averages.forEach((duration, idx) => {
+    const ratio = duration / maxDuration;
+    const x = positions[idx];
+    const y = canvas.height - padding - ratio * (canvas.height - padding * 2);
+    if (idx === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.stroke();
+  ctx.globalCompositeOperation = "destination-over";
+  ctx.fillStyle = "rgba(15, 23, 42, 0.5)";
+  ctx.beginPath();
+  averages.forEach((duration, idx) => {
+    const ratio = duration / maxDuration;
+    const x = positions[idx];
+    const y = canvas.height - padding - ratio * (canvas.height - padding * 2);
+    ctx.lineTo(x, canvas.height - padding);
+    ctx.lineTo(x, y);
+  });
+  ctx.lineTo(canvas.width - padding, canvas.height - padding);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalCompositeOperation = "source-over";
+  averages.forEach((duration, idx) => {
+    const ratio = duration / maxDuration;
+    const x = positions[idx];
+    const y = canvas.height - padding - ratio * (canvas.height - padding * 2);
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = wordShapeLetterColor(duration);
+    ctx.fill();
+    ctx.strokeStyle = "#0f172a";
+    ctx.stroke();
+  });
 }
 
 function wordShapeLetterColor(duration) {
@@ -894,7 +945,7 @@ function buildPresserCube(container, summary) {
 
   const percent = document.createElement("p");
   percent.className = "presser-hint";
-  percent.textContent = `You sit at the ${percentile}th percentile of the global presser scale, lingering in the ${stage.label} zone.`;
+  percent.textContent = `Avg hold ${avgPress}ms places you at the ${percentile}th percentile of the global presser scale and keeps you in the ${stage.label} comfort zone.`;
   container.appendChild(percent);
 }
 
@@ -909,7 +960,7 @@ async function buildGPTCube(container, summary, mode, gptUrl) {
   subtitle.textContent = CURRENT_UI_TEXT.ai_cube_subtitle || "Persona & keyboard age";
   const message = document.createElement("div");
   message.textContent =
-    "Run the AI insights script to refresh persona, keyboard age, and the stories it uncovers.";
+    "Run `gpt_insights.py` with a configured OpenAI key to refresh the GPT narrative and hear why it chose this persona, keyboard age, and detailed stories.";
   box.appendChild(status);
   box.appendChild(subtitle);
   box.appendChild(message);
@@ -921,6 +972,26 @@ async function buildGPTCube(container, summary, mode, gptUrl) {
   } catch {
     status.textContent = "AI insight missing";
   }
+}
+
+function computeGraphXPositions(wordLength, width, padding = 14) {
+  const positions = [];
+  if (!wordLength) {
+    return positions;
+  }
+  const available = Math.max(width - padding * 2, 0);
+  const step = Math.max(wordLength - 1, 1);
+  for (let idx = 0; idx < wordLength; idx += 1) {
+    positions.push(padding + (idx * available) / step);
+  }
+  return positions;
+}
+
+function positionLetters(spans, positions) {
+  spans.forEach((span, idx) => {
+    const x = positions[idx] ?? 0;
+    span.style.left = `${x}px`;
+  });
 }
 
 function highlight_rage_day(summary) {

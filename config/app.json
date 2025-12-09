@@ -12,17 +12,17 @@
     "temperature": 0.75
   },
   "ui_text": {
-    "hero_eyebrow": "Keyboard Wrapped · Cube stories",
+    "hero_eyebrow": "Keyboard Wrapped · AI first",
     "hero_title": "Cube Stories",
-    "hero_lede": "Each cube is a chapter in your keyboard’s year. Scroll, reorder, and let the AI weave the stats into a narrative of your typing.",
-    "hero_cta": "Use this JSON to reorder cubes, switch datasets, or refresh the AI copy.",
-    "control_hint": "The cubes and datasets shown here are controlled via <code>config/app.json</code>. Tune it to change the data or the story order.",
+    "hero_lede": "The AI insight is first—run `gpt_insights.py` (with a real API key) before exploring the other cubes so the persona and age arrive with context.",
+    "hero_cta": "Use this JSON to reorder cubes, swap datasets, or refresh the GPT narrative.",
+    "control_hint": "Set `gpt.api_key` before running `gpt_insights.py` so the AI cube comes alive with varied responses (temperature 0.75).",
     "footer_note": "Serve with <code>python3 -m http.server</code> and open <code>ui/index.html</code>. Run <code>gpt_insights.py</code> (with <code>OPENAI_API_KEY</code>) to refresh the AI cube; the <code>data</code> folder includes sample summaries and fallback replies for testing.",
     "ai_cube_subtitle": "Persona & keyboard age",
     "heatmap_flow_hint": "Tap a bubble to reveal its flow map."
   },
   "visual": {
-    "word_pie_limit": 8,
+    "word_pie_limit": 20,
     "transition_limit": 12,
     "heatmap_top_words": 24,
     "word_flow_neighbors": 3,

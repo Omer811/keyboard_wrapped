@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import textwrap
 from pathlib import Path
 from typing import Any, Dict
@@ -185,6 +186,7 @@ def adjacency_summary(summary: Dict[str, Any], limit=5):
 
 
 def build_prompt(summary: Dict[str, Any]):
+    age = keyboard_age_from_speed(summary)
     top = top_words(summary)
     fastest = fastest_words(summary)
     rage = highlight_rage_day(summary)
@@ -213,6 +215,8 @@ def build_prompt(summary: Dict[str, Any]):
         5. Standout days (rage bursts or word storms).
         6. A suggestion for a new layout using adjacency info.
 
+        Keyboard age: {age} years. Explain how the speed, letter holds, long pauses, and favorite words support that guess.
+
         Total presses: {summary.get('total_events')}
         Letters: {summary.get('letters')}, Actions: {summary.get('actions')}
         Rage bursts: {summary.get('rage_clicks')} (daily high {rage[1] if rage else 0})
@@ -240,6 +244,7 @@ def fallback_analysis(summary: Dict[str, Any], sample_mode=False):
     word_day = highlight_word_day(summary)
     parts = [
         f"Keyboard age: {age} years, with {typing['wpm']} WPM, {typing['avg_interval']}ms median pauses, and {typing['avg_press_length']}ms key holds.",
+        f"Keyboard age reasoning: {typing['wpm']} WPM speed, {typing['avg_press_length']}ms holds, and {typing['long_pause_rate'] * 100:.1f}% long pauses lock in this age, together with signature words of {top}.",
         f"Top words: {top}.",
         f"Fastest words: {fast}.",
         f"Long pauses strike at roughly {typing['long_pause_rate'] * 100:.1f}% of presses.",
@@ -274,7 +279,7 @@ def call_openai(prompt: str, config: Dict[str, Any]):
     if openai is None:
         raise ImportError("Install openai (`pip install openai`) to request GPT responses.")
     gpt_cfg = config.get("gpt", {})
-    api_key = gpt_cfg.get("api_key")
+    api_key = gpt_cfg.get("api_key") or os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("No OpenAI API key found in config.")
     openai.api_key = api_key

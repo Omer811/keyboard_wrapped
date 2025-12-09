@@ -361,17 +361,21 @@ header.hero {
   border-radius: 0.75rem;
   background: rgba(15, 23, 42, 0.75);
   border: 1px solid rgba(248, 250, 252, 0.1);
+  width: 100%;
 }
 
 .word-shape-row {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
+  position: relative;
+  height: 40px;
+  margin-bottom: 0.45rem;
 }
 
 .word-shape-row span {
-  width: 30px;
-  height: 30px;
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, 0);
+  width: 32px;
+  height: 32px;
   border-radius: 0.5rem;
   display: flex;
   align-items: center;
@@ -529,6 +533,14 @@ header.hero {
   margin: 0.35rem 0 0;
   font-size: 0.8rem;
   color: #9ca3af;
+}
+
+.word-shape-duration-graph {
+  margin-top: 0.6rem;
+  width: 100%;
+  border-radius: 0.9rem;
+  background: rgba(15, 23, 42, 0.8);
+  box-shadow: inset 0 0 20px rgba(2, 6, 23, 0.6);
 }
 
 .word-bubble {
