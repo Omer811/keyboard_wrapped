@@ -13,7 +13,7 @@
   "ui_text": {
     "hero_eyebrow": "",
     "hero_title": "Keyboard Wrapped ",
-    "hero_lede": "Dive into a beautifully curated story of your typing year—each cube is a chapter of insight, performance, and style.",
+    "hero_lede": "Scroll trough your year, from the viewpoint of your keyboard!",
     "hero_cta": "",
     "control_hint": "",
     "footer_note": "A mockup experience for demoing AI-assisted keyboard insights—no instructions required.",
@@ -27,6 +27,8 @@
     "word_flow_neighbors": 2,
     "layout_neighbor_limit": 2,
     "layout_show_full_adjacency": false,
+    "layout_show_prev_keys": false,
+    "layout_show_next_keys": true,
     "story_card_width": 300
   },
   "groups": [
@@ -72,7 +74,7 @@
       "order": 60,
       "group": "word",
       "label": "Word choreography",
-      "description": "Favorite words rendered as a doughnut.",
+      "description": "Favorite words of the year.",
       "enabled": true
     },
     {
@@ -85,10 +87,10 @@
     },
     {
       "id": "layout",
-      "order": 30,
+      "order":5,
       "group": "research",
       "label": "Layout lab",
-      "description": "Suggested keyboard layout with actual modifiers preserved.",
+      "description": "Suggested keyboard layout based on you recent year.",
       "enabled": true
     },
     {
@@ -104,7 +106,7 @@
       "order": 30,
       "group": "research",
       "label": "Word heatmap",
-      "description": "Bubble clusters sized by frequency and diversity.",
+      "description": "See the press profile of your words!",
       "enabled": true
     }
   ]

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 
@@ -23,3 +24,12 @@ def test_story_card_width_is_configurable():
     css = Path("ui/styles.css").read_text()
     assert "--story-card-width" in css
     assert "min-width: var(--story-card-width" in css
+
+
+def test_layout_flags_present():
+    config = json.loads(Path("config/app.json").read_text())
+    visual = config.get("visual", {})
+    assert "layout_show_prev_keys" in visual
+    assert "layout_show_next_keys" in visual
+    assert visual["layout_show_prev_keys"] is True
+    assert visual["layout_show_next_keys"] is True

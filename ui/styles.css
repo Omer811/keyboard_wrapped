@@ -244,24 +244,7 @@ header.hero {
   );
 }
 
-.layout-key::after {
-  content: attr(data-hint);
-  position: absolute;
-  left: 50%;
-  transform: translate(-50%, 110%);
-  background: rgba(15, 23, 42, 0.95);
-  padding: 0.35rem 0.5rem;
-  border-radius: 0.45rem;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
 
-.layout-key:hover::after {
-  opacity: 1;
-}
 
 .word-bubbles {
   margin-top: 1.25rem;

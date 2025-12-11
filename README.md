@@ -23,3 +23,7 @@ The GPT script looks for an API key in `OPENAI_API_KEY` before it ever reads `co
 ## Netlify builds
 
 Netlify runs the command defined in `netlify.toml`, which copies `config/app.json` and the entire `data/` folder into `ui/` before publishing. The UI now tries `./config/app.json`/`./data/...` first and falls back to `../config`/`../data` so the 404 vanishes while local runs still work. During local development you can still use `./run_gpt_ui.sh --netlify` (or omit `--netlify`) to keep the config/data copy and dev server in sync, and the new status line at the top will tell you which asset path loaded or why it failed.
+
+## Layout cube flags
+
+Use `visual.layout_show_prev_keys` and `visual.layout_show_next_keys` in `config/app.json` to toggle whether the Layout Lab cube highlights the preceding or following key sequences; both default to `true`, letting you focus on the direction that matters most.

@@ -675,6 +675,9 @@ function buildLayoutCube(container, summary) {
   grid.className = "layout-grid";
   const cellsByKey = new Map();
   const highlighted = new Set();
+  const showPrevNeighbors = CURRENT_VISUAL.layout_show_prev_keys !== false;
+  const showNextNeighbors = CURRENT_VISUAL.layout_show_next_keys !== false;
+  let activeLetter = null;
 
   function markNeighborCell(keyName, className, strength = 0.3, color) {
     const normalized = keyName.toLowerCase();
@@ -707,6 +710,43 @@ function buildLayoutCube(container, summary) {
     )}%, 0.85)`;
   }
 
+  const highlightNeighbors = (display) => {
+    resetNeighborHighlights();
+    if (!display) return;
+    const normalizedDisplay = display.toLowerCase();
+    const orderedBefore = showPrevNeighbors
+      ? Object.entries(before[normalizedDisplay] || {}).sort(([, a], [, b]) => b - a)
+      : [];
+    const orderedAfter = showNextNeighbors
+      ? Object.entries(after[normalizedDisplay] || {}).sort(([, a], [, b]) => b - a)
+      : [];
+    const maxPrev = orderedBefore[0]?.[1] || 1;
+    const maxNext = orderedAfter[0]?.[1] || 1;
+    if (showPrevNeighbors) {
+      limitNeighbors(orderedBefore).forEach(([neighbor, count]) => {
+        const ratio = count / Math.max(maxPrev, 1);
+        markNeighborCell(
+          neighbor,
+          "layout-key--neighbor-before",
+          ratio,
+          colorForNeighbor(true, ratio)
+        );
+      });
+    }
+    if (showNextNeighbors) {
+      limitNeighbors(orderedAfter).forEach(([neighbor, count]) => {
+        const ratio = count / Math.max(maxNext, 1);
+        markNeighborCell(
+          neighbor,
+          "layout-key--neighbor-after",
+          ratio,
+          colorForNeighbor(false, ratio)
+        );
+      });
+    }
+    activeLetter = display.toLowerCase();
+  };
+
   layoutRows.forEach((row, rowIndex) => {
     row.forEach((key, colIndex) => {
       const cell = document.createElement("button");
@@ -718,15 +758,6 @@ function buildLayoutCube(container, summary) {
       let display = key;
       if (letterSet.has(lower)) {
         display = placement.get(`${rowIndex}-${colIndex}`) || key;
-        const orderedBefore = Object.entries(before[display.toLowerCase()] || {}).sort(([, a], [, b]) => b - a);
-        const orderedAfter = Object.entries(after[display.toLowerCase()] || {}).sort(([, a], [, b]) => b - a);
-        const hintBefore = limitNeighbors(orderedBefore).map(([neighbor]) => neighbor.toUpperCase());
-        const hintAfter = limitNeighbors(orderedAfter).map(([neighbor]) => neighbor.toUpperCase());
-        cell.dataset.hint = `Before: ${hintBefore.join(", ") || "—"} · After: ${
-          hintAfter.join(", ") || "—"
-        }`;
-      } else {
-        cell.dataset.hint = key;
       }
       cell.textContent = display;
       const normalizedKey = display.toLowerCase();
@@ -735,38 +766,14 @@ function buildLayoutCube(container, summary) {
         cellsByKey.set(name, (cellsByKey.get(name) || []).concat(cell));
       });
 
-      const normalizedDisplay = display.toLowerCase();
       cell.addEventListener("mouseenter", () => {
-        resetNeighborHighlights();
-        const prevEntries = Object.entries(before[normalizedDisplay] || {}).sort(([, a], [, b]) => b - a);
-        const nextEntries = Object.entries(after[normalizedDisplay] || {}).sort(([, a], [, b]) => b - a);
-        const maxPrev = prevEntries[0]?.[1] || 1;
-        const maxNext = nextEntries[0]?.[1] || 1;
-        const shownPrev = limitNeighbors(prevEntries);
-        const shownNext = limitNeighbors(nextEntries);
-        shownPrev.forEach(([neighbor, count]) => {
-          const ratio = count / Math.max(maxPrev, 1);
-          markNeighborCell(
-            neighbor,
-            "layout-key--neighbor-before",
-            ratio,
-            colorForNeighbor(true, ratio)
-          );
-        });
-        shownNext.forEach(([neighbor, count]) => {
-          const ratio = count / Math.max(maxNext, 1);
-          markNeighborCell(
-            neighbor,
-            "layout-key--neighbor-after",
-            ratio,
-            colorForNeighbor(false, ratio)
-          );
-        });
+        highlightNeighbors(display);
         cell.classList.add("layout-key--active");
       });
       cell.addEventListener("mouseleave", () => {
         resetNeighborHighlights();
         cell.classList.remove("layout-key--active");
+        activeLetter = null;
       });
       grid.appendChild(cell);
     });
