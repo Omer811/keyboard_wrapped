@@ -334,7 +334,10 @@ class WrappedLogger:
     def _normalize_key(self, key):
         if isinstance(key, keyboard.KeyCode) and key.char:
             return key.char
-        return str(key).strip("Key.").lower()
+        text = str(key)
+        if text.startswith("Key."):
+            text = text[len("Key.") :]
+        return text.lower()
 
     def _categorize(self, key):
         if isinstance(key, keyboard.KeyCode) and key.char:
