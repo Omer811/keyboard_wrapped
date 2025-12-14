@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from scripts.configuration import load_app_config as load_config, widget_paths
+from scripts.logger_health import append_debug
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -72,17 +73,29 @@ def build_prompt(
     diff_lines: List[str],
     iteration: int,
     mode: str,
+    previous: Dict[str, Any],
 ) -> str:
     status = "live" if mode == "real" else "sample"
     diff_text = "; ".join(diff_lines) or "steady rhythm"
+    prev_summary = (
+        f"Previous keystrokes {int(previous.get('keyProgress', 0))}, speed {int(previous.get('speedProgress', 0))}, balance {int(previous.get('handshakeProgress', 0))}."
+        if previous
+        else "No prior snapshot."
+    )
+    key_goal = max(0, 5000 - current.get("keyProgress", 0))
+    balance_goal = max(0, 80 - current.get("handshakeProgress", 0))
+    speed_goal = max(0, 120 - current.get("speedProgress", 0))
     return textwrap.dedent(
         f"""\
         You are KeyboardAI. The widget just refreshed (iteration {iteration}) in {status} mode.
         Current reads: {int(current.get('keyProgress', 0))} keystrokes,
         speed {int(current.get('speedProgress', 0))}, balance {int(current.get('handshakeProgress', 0))}.
         Changes: {diff_text}.
+        Previous snapshot: {prev_summary}
+        Mission: Close the rings by capturing {key_goal} more keystrokes, boosting speed toward {speed_goal} rhythm points, raising balance up to {balance_goal}, and nudging accuracy every time you mistype a favorite word.
         Craft a unique, playful insight no longer than 120 words. Mention what the new rhythm says about the user, celebrate increases, and nudge toward smoother balance when dips appear.
         Address the user directly with "you" and keep vibe lively.
+        Provide one concrete action the user can take after reading this insight. Do not repeat the same status or rehash the previous prompt—transform it into a motivating pep talk that keeps the focus on the ring goals.
         """
     )
 
@@ -103,6 +116,7 @@ def run_cycle(
     progress_path: Path,
     feed_path: Path,
     state_path: Path,
+    debug_path: Path,
     config: Dict[str, Any],
     mode: str,
     dry_run: bool,
@@ -114,14 +128,15 @@ def run_cycle(
     state = {}
     if state_path.exists():
         state = load_json(state_path)
-    previous_hash = state.get("last_hash")
-    if current_hash == previous_hash and not dry_run:
-        return False
     previous_snapshot = state.get("last_snapshot", {})
     diff_lines = describe_diff(snapshot, previous_snapshot)
     iteration = int(state.get("iteration", 0)) + 1
-    prompt = build_prompt(snapshot, diff_lines, iteration, mode)
+    prompt = build_prompt(snapshot, diff_lines, iteration, mode, previous_snapshot)
     message = fallback_message(snapshot, diff_lines, iteration, mode)
+    append_debug(
+        f"GPT prompt (mode {mode}, iteration {iteration}): {prompt[:200].replace(os.linesep, ' ')}",
+        debug_path,
+    )
     if not dry_run:
         try:
             message = call_openai(prompt, config)
@@ -168,6 +183,7 @@ def main(argv: Optional[List[str]] = None):
             paths["progress"],
             paths["feed"],
             paths["state"],
+            paths["debug"],
             config,
             args.mode,
             args.dry_run,
