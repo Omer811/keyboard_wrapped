@@ -2,6 +2,38 @@ import Foundation
 import SwiftUI
 import Darwin
 
+struct RingSetting: Identifiable {
+    let key: String
+    let title: String
+    let accent: String
+    let enabled: Bool
+
+    var id: String { key }
+
+    static let defaultSettings: [RingSetting] = [
+        RingSetting(key: "keystrokes", title: "Keystrokes", accent: "accent", enabled: true),
+        RingSetting(key: "speed", title: "Speed Points", accent: "blue", enabled: true),
+        RingSetting(key: "balance", title: "Keyboard Balance", accent: "green", enabled: true),
+        RingSetting(key: "accuracy", title: "Typing Accuracy", accent: "purple", enabled: true),
+    ]
+
+    static func merged(defaults: [RingSetting] = RingSetting.defaultSettings, overrides: [[String: Any]]?) -> [RingSetting] {
+        var base = [String: RingSetting]()
+        defaults.forEach { base[$0.key] = $0 }
+        overrides?.forEach { raw in
+            guard let key = raw["key"] as? String else {
+                return
+            }
+            let existing = base[key]
+            let title = raw["title"] as? String ?? existing?.title ?? key.capitalized
+            let accent = raw["accent"] as? String ?? existing?.accent ?? "accent"
+            let enabled = raw["enabled"] as? Bool ?? existing?.enabled ?? true
+            base[key] = RingSetting(key: key, title: title, accent: accent, enabled: enabled)
+        }
+        return defaults.compactMap { base[$0.key] }
+    }
+}
+
 final class SummaryMonitor: ObservableObject {
     static var repoRootURL: URL = {
         if let root = ProcessInfo.processInfo.environment["KEYBOARD_WRAPPED_ROOT"] {
@@ -45,6 +77,7 @@ final class SummaryMonitor: ObservableObject {
         let healthPath: String
         let debugLogPath: String
         let accuracyTarget: Double
+        let ringSettings: [RingSetting]
 
         static func load() -> WidgetConfig {
             let defaultConfig = WidgetConfig(
@@ -54,7 +87,8 @@ final class SummaryMonitor: ObservableObject {
                 gptFeedPath: "data/widget_gpt_feed.json",
                 healthPath: "data/widget_health.json",
                 debugLogPath: "data/widget_debug.log",
-                accuracyTarget: 120
+                accuracyTarget: 120,
+                ringSettings: RingSetting.defaultSettings
             )
             let configURL = SummaryMonitor.repoRootURL.appending(path: "config/app.json")
             guard
@@ -72,6 +106,8 @@ final class SummaryMonitor: ObservableObject {
             let debug = widget["debug_log_path"] as? String ?? defaultConfig.debugLogPath
             let accuracySettings = raw["word_accuracy"] as? [String: Any] ?? [:]
             let accuracy = accuracySettings["target_score"] as? Double ?? defaultConfig.accuracyTarget
+            let ringConfigs = widget["rings"] as? [[String: Any]]
+            let rings = RingSetting.merged(defaults: defaultConfig.ringSettings, overrides: ringConfigs)
             return WidgetConfig(
                 sampleRatio: ratio,
                 sampleAvgInterval: interval,
@@ -79,7 +115,8 @@ final class SummaryMonitor: ObservableObject {
                 gptFeedPath: feed,
                 healthPath: health,
                 debugLogPath: debug,
-                accuracyTarget: accuracy
+                accuracyTarget: accuracy,
+                ringSettings: rings
             )
         }
     }
@@ -98,10 +135,10 @@ final class SummaryMonitor: ObservableObject {
     @Published private(set) var healthStatus: String = "Logger status unknown"
     @Published private(set) var healthMessage: String = ""
     @Published private(set) var debugSnippet: String = ""
-    @Published private(set) var handshakeMessage: String = ""
     @Published private(set) var monitorModeEnabled: Bool = false
     @Published private(set) var accuracyScore: Double = 0
     @Published private(set) var accuracyTarget: Double = SummaryMonitor.widgetConfig.accuracyTarget
+    @Published private(set) var ringSettings: [RingSetting] = SummaryMonitor.widgetConfig.ringSettings
 
     private var timer: Timer?
     private var currentMode: Mode
@@ -322,20 +359,12 @@ final class SummaryMonitor: ObservableObject {
             self.keyProgress = min(self.keyTarget, stats.totalEvents)
             self.speedProgress = stats.speedScore
             self.handshakeProgress = stats.handshakeScore
-            self.handshakeMessage = self.handshakeHint(for: stats.handshakeScore)
             self.accuracyScore = accuracyScore
             self.accuracyTarget = accuracyTarget
             let modeLabel = self.currentMode == .sample ? "Sample" : "Live"
             self.statusText = "\(modeLabel) mode · Pauses \(Int(stats.avgInterval))ms · Rings updated"
             self.persistRingState()
         }
-    }
-
-    private func handshakeHint(for score: Double) -> String {
-        if score >= 10 {
-            return "Keyboard balance active · score \(Int(score))"
-        }
-        return "Balance is building; stretch across the layout to boost handshake points."
     }
 
     private func normalizedSummary(_ summary: [String: Any]) -> [String: Any] {
@@ -400,6 +429,55 @@ final class SummaryMonitor: ObservableObject {
         } catch {
             print("Failed to persist widget progress: \(error)")
             writeDebug("Failed to persist widget progress: \(error)")
+        }
+    }
+
+    var activeRingSettings: [RingSetting] {
+        ringSettings.filter { $0.enabled }
+    }
+
+    func progressValue(for key: String) -> Double {
+        switch key {
+        case "keystrokes":
+            return min(keyProgress, keyTarget)
+        case "speed":
+            return speedProgress
+        case "balance":
+            return handshakeProgress
+        case "accuracy":
+            return accuracyScore
+        default:
+            return 0
+        }
+    }
+
+    func targetValue(for key: String) -> Double {
+        switch key {
+        case "keystrokes":
+            return keyTarget
+        case "speed":
+            return speedTarget
+        case "balance":
+            return handshakeTarget
+        case "accuracy":
+            return accuracyTarget
+        default:
+            return 100
+        }
+    }
+
+    func accentColor(for accent: String) -> Color {
+        switch accent.lowercased() {
+        case "blue":
+            return .blue
+        case "green":
+            return .green
+        case "purple":
+            return .purple
+        case "accent":
+            return .accentColor
+        default:
+            return .accentColor
         }
     }
 

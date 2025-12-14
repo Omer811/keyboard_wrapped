@@ -4,6 +4,20 @@ import SwiftUI
 final class StatusBarController: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let monitor = SummaryMonitor()
+    private lazy var toggleMenuItem: NSMenuItem = {
+        let item = NSMenuItem(title: "", action: #selector(toggleModeFromMenu(_:)), keyEquivalent: "")
+        item.target = self
+        return item
+    }()
+    private lazy var contextMenu: NSMenu = {
+        let menu = NSMenu(title: "Keyboard Monitor")
+        menu.addItem(toggleMenuItem)
+        menu.addItem(NSMenuItem.separator())
+        let exitItem = NSMenuItem(title: "Exit Monitor", action: #selector(exitApp(_:)), keyEquivalent: "")
+        exitItem.target = self
+        menu.addItem(exitItem)
+        return menu
+    }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = panel
@@ -14,16 +28,29 @@ final class StatusBarController: NSObject, NSApplicationDelegate {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         monitor.start()
+        updateToggleMenuTitle()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        terminateHelperProcesses()
     }
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
         guard let event = NSApp.currentEvent else { return }
         if event.type == .rightMouseUp {
-            statusItem.button?.window?.orderOut(nil)
-            NSApp.terminate(self)
+            showContextMenu(relativeTo: sender)
             return
         }
         toggleWindow(relativeTo: sender)
+    }
+
+    @objc private func toggleModeFromMenu(_ sender: Any?) {
+        monitor.toggleMode()
+        updateToggleMenuTitle()
+    }
+
+    @objc private func exitApp(_ sender: Any?) {
+        NSApp.terminate(self)
     }
 
     private lazy var panel: NSPanel = {
@@ -56,7 +83,18 @@ final class StatusBarController: NSObject, NSApplicationDelegate {
             positionPanel(relativeTo: button)
             panel.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            monitor.panelDidReveal()
         }
+    }
+
+    private func showContextMenu(relativeTo button: NSStatusBarButton) {
+        updateToggleMenuTitle()
+        let menuOrigin = NSPoint(x: button.bounds.minX, y: button.bounds.minY)
+        contextMenu.popUp(positioning: nil, at: menuOrigin, in: button)
+    }
+
+    private func updateToggleMenuTitle() {
+        toggleMenuItem.title = monitor.isSampleMode ? "Switch to Live Data" : "Switch to Sample Data"
     }
 
     private func positionPanel(relativeTo button: NSStatusBarButton) {
@@ -72,6 +110,27 @@ final class StatusBarController: NSObject, NSApplicationDelegate {
         }
         panel.setFrameOrigin(NSPoint(x: x, y: y))
     }
+
+    private func terminateHelperProcesses() {
+        terminatePidFile(named: ".keyboard_logger.pid")
+        terminatePidFile(named: ".widget_gpt.pid")
+    }
+
+    private func terminatePidFile(named name: String) {
+        let pidFile = SummaryMonitor.repoRootURL.appending(path: "mac-widget/\(name)")
+        guard let pidString = try? String(contentsOf: pidFile, encoding: .utf8),
+              let pid = Int(pidString.trimmingCharacters(in: .whitespacesAndNewlines))
+        else {
+            try? FileManager.default.removeItem(at: pidFile)
+            return
+        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/kill")
+        process.arguments = ["-9", "\(pid)"]
+        try? process.run()
+        try? process.waitUntilExit()
+        try? FileManager.default.removeItem(at: pidFile)
+    }
 }
 
 struct StatusBarView: View {
@@ -82,20 +141,62 @@ struct StatusBarView: View {
             Text("Keyboard Rings")
                 .font(.title3)
                 .bold()
-            RingRow(title: "Keystrokes", progress: monitor.keyProgress, accent: Color.accentColor, target: monitor.keyTarget)
-            RingRow(title: "Speed Points", progress: monitor.speedProgress, accent: .blue, target: monitor.speedTarget)
-            RingRow(title: "Keyboard Balance", progress: monitor.handshakeProgress, accent: .green, target: monitor.handshakeTarget)
-            Text(monitor.statusText)
-                .font(.footnote)
-                .foregroundColor(.secondary)
-            Divider()
-            HStack {
-                Spacer()
-                Button(monitor.isSampleMode ? "Switch to Live Data" : "Switch to Sample Data") {
-                    monitor.toggleMode()
-                }
-                .keyboardShortcut("m", modifiers: [.command])
+            ForEach(monitor.activeRingSettings) { ring in
+                RingRow(
+                    title: ring.title,
+                    progress: monitor.progressValue(for: ring.key),
+                    accent: monitor.accentColor(for: ring.accent),
+                    target: monitor.targetValue(for: ring.key)
+                )
             }
+            if monitor.monitorModeEnabled {
+                Text(monitor.statusText)
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                Text("Logger: \(monitor.healthStatus)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                if !monitor.healthMessage.isEmpty {
+                    Text(monitor.healthMessage)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+                if !monitor.debugSnippet.isEmpty {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Recent events")
+                            .font(.caption2)
+                            .bold()
+                        Text(monitor.debugSnippet)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(3)
+                    }
+                }
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 6) {
+                Text("AI Insight")
+                    .font(.subheadline)
+                    .bold()
+                Text(monitor.aiInsight)
+                    .font(.footnote)
+                    .foregroundColor(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(nil)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 14).fill(Color.accentColor.opacity(0.12)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+            )
+            Divider()
+            Text("Right-click the icon for data mode or exit.")
+                .font(.caption2)
+                .foregroundColor(.secondary)
         }
         .padding(12)
         .frame(width: 320)
