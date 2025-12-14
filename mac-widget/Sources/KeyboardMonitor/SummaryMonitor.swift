@@ -204,7 +204,7 @@ final class SummaryMonitor: ObservableObject {
         }
         summarySource = source
         source.resume()
-        writeDebug("Observing summary file at \(path)")
+        writeDebug("Observing summary file at \(path)", monitorOnly: true)
     }
 
     private func cleanupSummaryObserver() {
