@@ -155,8 +155,8 @@ def inject_keys(
         append_keystroke(event, keystroke_path)
         events.append(event)
         previous = key
-    persist_summary(summary, summary_path)
     _score_mock_word(summary, keys)
+    persist_summary(summary, summary_path)
     if debug_path:
         append_debug(
             f"Mock injected {len(events)} events ending on {events[-1]['key']}",
