@@ -26,3 +26,5 @@ def test_mock_injection_records_word_accuracy(tmp_path: Path, monkeypatch):
 
     persisted = json.loads(summary_path.read_text())
     assert persisted["word_accuracy"]["score"] == summary["word_accuracy"]["score"]
+    log_text = debug_log.read_text()
+    assert "Word 'the' earned" in log_text

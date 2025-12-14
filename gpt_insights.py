@@ -218,7 +218,7 @@ def adjacency_summary(summary: Dict[str, Any], limit=5):
     return [f"{frm}->{to} ({count})" for count, frm, to in merged[:limit]]
 
 
-def build_prompt(summary: Dict[str, Any]):
+def build_prompt(summary: Dict[str, Any], config: Dict[str, Any]):
     age = keyboard_age_from_speed(summary)
     top = top_words(summary)
     fastest = fastest_words(summary)
@@ -238,34 +238,51 @@ def build_prompt(summary: Dict[str, Any]):
     adjacencies = adjacency_summary(summary, limit=4)
     key_holds = summarize_key_holds(summary, limit=4)
     hold_text = format_key_hold_summary(key_holds)
+    accuracy_target = config.get("word_accuracy", {}).get("target_score", 120)
+    current_accuracy = summary.get("word_accuracy", {}).get("score", 0)
+    key_goal = max(0, 5000 - summary.get("total_events", 0))
+    interval = typing.get("avg_interval", 0)
+    speed_wpm = typing.get("wpm", 0)
+    task_info = textwrap.dedent(
+        f"""\
+        Ring goals:
+        - Keystrokes: {key_goal} more presses to hit the 5,000-stroke ring.
+        - Speed: trim each pause toward {int(interval)}ms and aim for ~120 rhythm points by nudging speed to {int(speed_wpm + 10)} WPM bursts.
+        - Balance: widen alternating key journeys so handshake points rise toward 80.
+        - Accuracy: push the score from {current_accuracy} toward {accuracy_target} by catching every misspelled favorite word.
+        Give at least one unique action step to close these goals.
+        """
+    )
     prompt = textwrap.dedent(
         f"""\
-        You are KeyboardAI. Analyze the following keyboard summary data and respond with JSON only.
-        Address the user directly using "you" (no references to "the writer" or third-person). Keep the response insightful and playful—fun but sharp.
-        Provide an "analysis_text" string and an "insights" array.
-        Each insight must have "tag", "title", "body" covering:
-        - A persona label and why you call the typist that.
-        - A keyboard age estimate described humorously, referencing speed/presses/pauses.
-        - Tempo notes (wpm, intervals, long holds) describing how it feels to type like you do.
-        - Favorite words with quick commentary and the vibe they create for you.
-        - Fastest words with durations, standout days, and layout thoughts for your most fluent transitions.
+You are KeyboardAI. Analyze the following keyboard summary data and respond with JSON only.
+The goal is to close the keyboard rings (keystrokes, speed, balance, accuracy). Mention that mission.
+Address the user directly using "you" (no references to "the writer" or third-person). Keep the response insightful and playful—fun but sharp.
+Provide an "analysis_text" string and an "insights" array.
+Each insight must have "tag", "title", "body" covering:
+- A persona label and why you call the typist that.
+- A keyboard age estimate described humorously, referencing speed/presses/pauses.
+- Tempo notes (wpm, intervals, long holds) describing how it feels to type like you do.
+- Favorite words with quick commentary and the vibe they create for you.
+- Fastest words with durations, standout days, and layout thoughts for your most fluent transitions.
 
-        Return valid JSON only and keep it double-quoted. No markdown wrappers.
+Return valid JSON only and keep it double-quoted. No markdown wrappers.
 
-        Total presses: {summary.get('total_events')}
-        Letters: {summary.get('letters')}, Actions: {summary.get('actions')}
-        Rage bursts: {summary.get('rage_clicks')} (daily high {rage[1] if rage else 0})
-        Word highlights: {', '.join(word for word, _ in top[:3])}
-        Fastest words: {', '.join(f"{word} ({duration}ms)" for word, duration in fastest)}
-        Word pairs: top sequences {', '.join(pairs)}
-        Word day: {word_day['date'] if word_day else '—'} (top word {word_day['topWord'] if word_day else '—'})
-        Typing speed: {typing['wpm']} wpm, avg interval {typing['avg_interval']}ms, avg press {typing['avg_press_length']}ms, long pause rate {typing['long_pause_rate'] * 100:.1f}%.
-        Word shapes: {', '.join(shapes) if shapes else '—'}
-        Word transitions: {', '.join(transitions) if transitions else '—'}
-        Key adjacency: {', '.join(adjacencies) if adjacencies else '—'}
-        Key dwellers: {hold_text}
-        Keyboard interface story: Sketch a vivid narrative of how you physically engage the keyboard, leaning on dwell stats and rhythm.
-        """
+Total presses: {summary.get('total_events')}
+Letters: {summary.get('letters')}, Actions: {summary.get('actions')}
+Rage bursts: {summary.get('rage_clicks')} (daily high {rage[1] if rage else 0})
+Word highlights: {', '.join(word for word, _ in top[:3])}
+Fastest words: {', '.join(f"{word} ({duration}ms)" for word, duration in fastest)}
+Word pairs: top sequences {', '.join(pairs)}
+Word day: {word_day['date'] if word_day else '—'} (top word {word_day['topWord'] if word_day else '—'})
+Typing speed: {typing['wpm']} wpm, avg interval {typing['avg_interval']}ms, avg press {typing['avg_press_length']}ms, long pause rate {typing['long_pause_rate'] * 100:.1f}%.
+Word shapes: {', '.join(shapes) if shapes else '—'}
+Word transitions: {', '.join(transitions) if transitions else '—'}
+Key adjacency: {', '.join(adjacencies) if adjacencies else '—'}
+Key dwellers: {hold_text}
+Keyboard interface story: Sketch a vivid narrative of how you physically engage the keyboard, leaning on dwell stats and rhythm.
+{task_info}
+"""
     )
     return prompt
 
@@ -299,6 +316,10 @@ def fallback_analysis(summary: Dict[str, Any], sample_mode=False):
         parts.append(
             f"Word feast on {word_day['date']} with {word_day['topWord']} {word_day['topValue']} times."
         )
+    key_goal = max(0, 5000 - summary.get("total_events", 0))
+    parts.append(
+        f"Rings mission: {key_goal} more taps for keystrokes, a few faster bursts to drop {int(typing['avg_interval'])}ms gaps, wider reaches for balance, and sharper spelling for accuracy."
+    )
     if sample_mode:
         parts.append("Offline sample insight keeps the AI cube populated.")
     return " ".join(parts)
@@ -419,22 +440,22 @@ def call_openai(prompt: str, config: Dict[str, Any]):
                 },
                 {"role": "user", "content": prompt},
             ],
-            temperature=gpt_cfg.get("temperature", 0.4),
+            temperature=gpt_cfg.get("temperature", 0.72),
         )
         return response.choices[0].message.content
 
     openai.api_key = api_key
-    response = openai.ChatCompletion.create(
-        model=gpt_cfg.get("model", "gpt-4o-mini"),
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a keyboard analyst; be concise and insightful.",
-            },
-            {"role": "user", "content": prompt},
-        ],
-        temperature=gpt_cfg.get("temperature", 0.4),
-    )
+        response = openai.ChatCompletion.create(
+            model=gpt_cfg.get("model", "gpt-4o-mini"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a keyboard analyst; be concise and insightful.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=gpt_cfg.get("temperature", 0.72),
+        )
     return response.choices[0].message.content
 
 
@@ -503,7 +524,7 @@ def run():
         print("  (No OpenAI API key configured; fallback insight generated from local heuristics.)")
         return
 
-    prompt = build_prompt(summary)
+    prompt = build_prompt(summary, config)
     print(f"GPT request stats: prompt {len(prompt)} chars, {len(prompt.encode('utf-8'))} bytes; summary has {len(json.dumps(summary))} chars")
     try:
         raw = call_openai(prompt, config)

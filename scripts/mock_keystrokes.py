@@ -155,7 +155,7 @@ def inject_keys(
         append_keystroke(event, keystroke_path)
         events.append(event)
         previous = key
-    _score_mock_word(summary, keys)
+    _score_mock_word(summary, keys, debug_path)
     persist_summary(summary, summary_path)
     if debug_path:
         append_debug(
@@ -217,7 +217,7 @@ def main():
     )
 
 
-def _score_mock_word(summary: Dict[str, Any], keys: Iterable[str]):
+def _score_mock_word(summary: Dict[str, Any], keys: Iterable[str], debug_path: Optional[Path]):
     word = "".join(str(key).lower() for key in keys if str(key).isalpha())
     if not word:
         return
@@ -241,6 +241,7 @@ def _score_mock_word(summary: Dict[str, Any], keys: Iterable[str]):
     key = "correct" if is_correct else "incorrect"
     accuracy[key] += 1
     accuracy["score"] = accuracy.get("score", 0) + points[key]
+    append_debug(f"Word '{word}' earned {points[key]:+} accuracy point(s).", debug_path)
 
 
 if __name__ == "__main__":
