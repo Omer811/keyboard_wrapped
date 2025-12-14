@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import os
 import platform
 import sys
 from datetime import datetime, timezone
@@ -17,13 +18,17 @@ except ImportError:  # pragma: no cover
     )
     sys.exit(1)
 
+from scripts.logger_health import append_debug, write_health_status
+from scripts.configuration import load_app_config
+from scripts.word_checker import WordChecker
+
 
 def _timestamp_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
 class WrappedLogger:
-    def __init__(self, log_path: Path, summary_path: Path, min_rage_interval_ms=450):
+    def __init__(self, log_path: Path, summary_path: Path, min_rage_interval_ms=450, log_mode=False):
         self.log_path = log_path
         self.summary_path = summary_path
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -44,6 +49,20 @@ class WrappedLogger:
         self.summary = self._load_existing_summary()
         self._ensure_schema()
         self.min_rage_interval_ms = min_rage_interval_ms
+        self.log_mode = log_mode
+        config = load_app_config()
+        accuracy_config = config.get("word_accuracy", {})
+        self.accuracy_points = {
+            "correct": float(accuracy_config.get("correct_points", 1)),
+            "incorrect": float(accuracy_config.get("incorrect_points", -2)),
+        }
+        self.accuracy_target = float(accuracy_config.get("target_score", 120))
+        checker_kwargs = {
+            "threshold": float(accuracy_config.get("threshold", 2.5)),
+            "min_length": int(accuracy_config.get("min_word_length", 1)),
+            "extra_words": accuracy_config.get("extra_words") or [],
+        }
+        self.word_checker = WordChecker(**checker_kwargs)
 
     def _load_existing_summary(self):
         if not self.summary_path.exists():
@@ -75,6 +94,7 @@ class WrappedLogger:
                     "avg_word_shape_samples": 0,
                     "long_pause_rate": 0,
                 },
+                "word_accuracy": {"score": 0, "correct": 0, "incorrect": 0},
             }
         with open(self.summary_path, "r", encoding="utf-8") as existing:
             try:
@@ -108,6 +128,7 @@ class WrappedLogger:
                     "avg_word_shape_samples": 0,
                     "long_pause_rate": 0,
                 },
+                "word_accuracy": {"score": 0, "correct": 0, "incorrect": 0},
                 }
 
     def _ensure_schema(self):
@@ -126,6 +147,7 @@ class WrappedLogger:
                 "avg_word_shape_samples": 0,
                 "long_pause_rate": 0,
             },
+            "word_accuracy": {"score": 0, "correct": 0, "incorrect": 0},
         }
         for key, value in defaults.items():
             self.summary.setdefault(key, value)
@@ -141,6 +163,8 @@ class WrappedLogger:
     def _write_event(self, event):
         self.log_file.write(json.dumps(event, ensure_ascii=False) + "\n")
         self.log_file.flush()
+        if self.log_mode:
+            self._log_capture(event)
 
     def _record_interval(self, interval_ms):
         if interval_ms <= 0:
@@ -239,8 +263,10 @@ class WrappedLogger:
         self.summary["last_event"] = event["timestamp"]
         if self.summary["first_event"] is None:
             self.summary["first_event"] = event["timestamp"]
+        self._refresh_typing_profile()
+        self._persist_summary()
 
-    def _finish_word(self, day_label=None, reset_sequence=False):
+    def _finish_word(self, day_label=None, reset_sequence=False, score_word=True):
         label = day_label or self.current_day_label
         if label is None and self.summary.get("last_event"):
             label = self.summary["last_event"][:10]
@@ -256,33 +282,54 @@ class WrappedLogger:
                     pairs.setdefault(word, 0)
                     pairs[word] += 1
 
-                self.previous_word = word
-                if label:
-                    day_words = self.summary["daily_word_counts"].setdefault(label, {})
-                    day_words.setdefault(word, 0)
-                    day_words[word] += 1
+            self.previous_word = word
+            if label:
+                day_words = self.summary["daily_word_counts"].setdefault(label, {})
+                day_words.setdefault(word, 0)
+                day_words[word] += 1
 
-                if self.word_start and self.word_last:
-                    duration = int(
-                        (self.word_last - self.word_start).total_seconds() * 1000
-                    )
-                    word_times = self.summary.setdefault("word_durations", {})
-                    stats = word_times.setdefault(word, {"count": 0, "total_ms": 0, "fastest_ms": None, "slowest_ms": 0})
-                    stats["count"] += 1
-                    stats["total_ms"] += duration
-                    stats["slowest_ms"] = max(stats["slowest_ms"], duration)
-                    if stats["fastest_ms"] is None or duration < stats["fastest_ms"]:
-                        stats["fastest_ms"] = duration
+            if score_word:
+                self._score_word(word)
+
+            if self.word_start and self.word_last:
+                duration = int(
+                    (self.word_last - self.word_start).total_seconds() * 1000
+                )
+                word_times = self.summary.setdefault("word_durations", {})
+                stats = word_times.setdefault(
+                    word,
+                    {"count": 0, "total_ms": 0, "fastest_ms": None, "slowest_ms": 0},
+                )
+                stats["count"] += 1
+                stats["total_ms"] += duration
+                stats["slowest_ms"] = max(stats["slowest_ms"], duration)
+                if stats["fastest_ms"] is None or duration < stats["fastest_ms"]:
+                    stats["fastest_ms"] = duration
                 self._record_word_shape(word)
 
-            self.word_buffer = []
-            self.word_start = None
-            self.word_last = None
-            self.current_word_letter_events = []
+        self.word_buffer = []
+        self.word_start = None
+        self.word_last = None
+        self.current_word_letter_events = []
 
         if reset_sequence:
             self.previous_word = None
             self.current_word_letter_events = []
+    
+    def _score_word(self, word: str) -> bool:
+        accuracy = self.summary.setdefault(
+            "word_accuracy",
+            {"score": 0, "correct": 0, "incorrect": 0},
+        )
+        is_correct = self.word_checker.is_correct(word)
+        key = "correct" if is_correct else "incorrect"
+        points = self.accuracy_points[key]
+        accuracy[key] += 1
+        score = accuracy.get("score", 0) + points
+        score = max(0, min(score, self.accuracy_target))
+        accuracy["score"] = score
+        append_debug(f"Word '{word}' earned {points:+} accuracy point(s).")
+        return is_correct
 
     def _normalize_key(self, key):
         if isinstance(key, keyboard.KeyCode) and key.char:
@@ -320,7 +367,7 @@ class WrappedLogger:
 
         if interval_ms > 2000:
             behaviors["long_pause"] = True
-            self._finish_word(day_label=date_label, reset_sequence=True)
+            self._finish_word(day_label=date_label, reset_sequence=True, score_word=False)
 
         if is_letter:
             self.word_buffer.append(normalized.lower())
@@ -362,23 +409,52 @@ class WrappedLogger:
         self._write_event(record["event"])
         self._update_summary(record["event"])
 
+    def _log_capture(self, event):
+        key_repr = event.get("key") or event.get("code") or event.get("key_code") or "unknown"
+        interval = event.get("interval_ms")
+        duration = event.get("duration_ms")
+        message = (
+            f"Captured {key_repr} | interval {interval}ms | duration {duration}ms"
+        )
+        append_debug(message)
+
     def _flush_pending_keys(self):
         for key in list(self.pending_keys.keys()):
             self.on_release(key)
 
     def stop(self):
         self._flush_pending_keys()
-        self._finish_word(day_label=self.current_day_label)
+        self._finish_word(day_label=self.current_day_label, score_word=False)
         self._refresh_typing_profile()
         self.log_file.close()
         with open(self.summary_path, "w", encoding="utf-8") as summary_file:
             json.dump(self.summary, summary_file, ensure_ascii=False, indent=2)
 
+    def _persist_summary(self):
+        self.summary_path.parent.mkdir(parents=True, exist_ok=True)
+        temp = self.summary_path.with_suffix(self.summary_path.suffix + ".tmp")
+        with temp.open("w", encoding="utf-8") as summary_file:
+            json.dump(self.summary, summary_file, ensure_ascii=False, indent=2)
+            summary_file.flush()
+            os.fsync(summary_file.fileno())
+        temp.replace(self.summary_path)
+        append_debug(
+            f"Summary saved: {self.summary['total_events']} events, "
+            f"{self.summary['typing_profile']['avg_interval']}ms avg interval"
+        )
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Capture a year's worth of key usage.")
     parser.add_argument(
+        "--log-mode",
         "--log",
+        dest="log_mode",
+        action="store_true",
+        help="Log every captured event into the widget debug log for diagnostics.",
+    )
+    parser.add_argument(
+        "--log-file",
         "-l",
         type=Path,
         default=Path("data/keystrokes.jsonl"),
@@ -396,16 +472,24 @@ def parse_args():
 
 def main():
     args = parse_args()
-    logger = WrappedLogger(args.log, args.summary)
+    logger = WrappedLogger(args.log_file, args.summary, log_mode=args.log_mode)
     print("Logger is running. Press Ctrl+C to stop and flush the summary.")
+    write_health_status("starting", "Preparing keyboard listener.")
 
-    with keyboard.Listener(on_press=logger.on_press, on_release=logger.on_release) as listener:
-        try:
-            listener.join()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            logger.stop()
+    try:
+        with keyboard.Listener(on_press=logger.on_press, on_release=logger.on_release) as listener:
+            write_health_status("listening", "Keyboard listener active.")
+            try:
+                listener.join()
+            except KeyboardInterrupt:
+                write_health_status("stopped", "Stopped by user.")
+            finally:
+                logger.stop()
+                write_health_status("stopped", "Logger stopped gracefully.")
+    except (OSError, PermissionError) as exc:
+        write_health_status("error", f"Permission error: {exc}")
+        logger.stop()
+        raise
 
 
 if __name__ == "__main__":

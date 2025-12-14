@@ -1,15 +1,36 @@
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict
-
+from typing import Any, Dict, Optional
 
 ASCII_LAYOUT = list("qwertyuiopasdfghjklzxcvbnm")
+
+from scripts.configuration import load_widget_settings
 
 
 def load_summary(path: Path) -> Dict[str, Any]:
     text = path.read_text()
     return json.loads(text)
+
+
+def apply_sample_adjustments(
+    summary: Dict[str, Any], settings: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    settings = settings or load_widget_settings()
+    ratio = max(0.0, min(1.0, settings.get("sample_total_ratio", 0.05)))
+    scaled_keys = ["total_events", "letters", "actions", "words", "rage_clicks", "long_pauses"]
+    adjusted = dict(summary)
+    for key in scaled_keys:
+        value = summary.get(key)
+        if isinstance(value, (int, float)):
+            adjusted[key] = max(1, int(round(value * ratio)))
+    if isinstance(adjusted.get("typing_profile"), dict):
+        typing = dict(adjusted["typing_profile"])
+    else:
+        typing = {}
+    typing["avg_interval"] = float(settings.get("sample_avg_interval", 210))
+    adjusted["typing_profile"] = typing
+    return adjusted
 
 
 def compute_speed_score(avg_interval_ms: float) -> float:
@@ -58,8 +79,22 @@ def build_snapshot(summary: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def persist_widget_progress(summary_path: Path, progress_path: Path) -> Dict[str, Any]:
+def _clamp_accuracy_score(score: float, target: float) -> float:
+    return max(0.0, min(score, target))
+
+
+def persist_widget_progress(
+    summary_path: Path, progress_path: Path, mode: str = "real"
+) -> Dict[str, Any]:
     summary = load_summary(summary_path)
+    if mode == "sample":
+        summary = apply_sample_adjustments(summary)
     snapshot = build_snapshot(summary)
+    accuracy_settings = load_widget_settings()
+    accuracy_summary = summary.get("word_accuracy", {})
+    target = float(accuracy_settings["accuracy_target"])
+    raw_score = float(accuracy_summary.get("score", 0))
+    snapshot["wordAccuracyScore"] = _clamp_accuracy_score(raw_score, target)
+    snapshot["wordAccuracyTarget"] = target
     progress_path.write_text(json.dumps(snapshot, indent=2))
     return snapshot
