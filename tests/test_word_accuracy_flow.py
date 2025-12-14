@@ -4,6 +4,19 @@ from pathlib import Path
 import pytest
 
 from scripts.mock_keystrokes import inject_keys
+from keyboard_logger import WrappedLogger
+
+@pytest.mark.usefixtures("monkeypatch")
+def test_score_word_clamps(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("KEYBOARD_WRAPPED_ROOT", str(tmp_path))
+    log_path = tmp_path / "keystrokes.jsonl"
+    summary_path = tmp_path / "summary.json"
+    logger = WrappedLogger(log_path, summary_path)
+    logger.summary["word_accuracy"] = {"score": -5, "correct": 0, "incorrect": 1}
+    logger.accuracy_target = 3
+    logger.accuracy_points["correct"] = 1
+    logger._score_word("the")
+    assert logger.summary["word_accuracy"]["score"] == 0
 
 
 def test_mock_injection_records_word_accuracy(tmp_path: Path, monkeypatch):
