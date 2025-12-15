@@ -8,7 +8,7 @@
   },
   "gpt": {
     "model": "gpt-4o-mini",
-    "temperature": 0.9
+    "temperature": 0.7
   },
   "ui_text": {
     "hero_eyebrow": "",
@@ -27,9 +27,36 @@
     "word_flow_neighbors": 2,
     "layout_neighbor_limit": 2,
     "layout_show_full_adjacency": false,
-    "layout_show_prev_keys": false,
+    "layout_show_prev_keys": true,
     "layout_show_next_keys": true,
     "story_card_width": 300
+  },
+  "word_accuracy": {
+    "correct_points": 1,
+    "incorrect_points": -2,
+    "threshold": 2.5,
+    "min_word_length": 4,
+    "target_score": 120
+  ,"languages": ["en", "he"]
+  },
+  "speed_points": {
+    "baseline_interval_ms": 600,
+    "interval_pct_threshold": 90,
+    "accuracy_pct_threshold": 70,
+    "session_interval_gap_ms": 2000,
+    "target_sessions": 12
+  },
+  "widget": {
+    "sample_total_ratio": 0.05,
+    "sample_avg_interval": 210,
+    "sample_window_days": 14,
+    "progress_path": "data/widget_progress.json",
+    "gpt_feed_path": "data/widget_gpt_feed.json",
+    "gpt_state_path": "data/widget_gpt_state.json",
+    "gpt_poll_interval": 4,
+    "health_path": "data/widget_health.json",
+    "debug_log_path": "data/widget_debug.log",
+    "handshake_threshold_ms": 250
   },
   "groups": [
     { "id": "core", "label": "Core Pulse" },

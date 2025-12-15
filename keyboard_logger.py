@@ -52,6 +52,12 @@ class WrappedLogger:
         self.log_mode = log_mode
         config = load_app_config()
         accuracy_config = config.get("word_accuracy", {})
+        speed_config = config.get("speed_points", {})
+        self.speed_baseline_interval = float(speed_config.get("baseline_interval_ms", 320))
+        self.speed_interval_pct = float(speed_config.get("interval_pct_threshold", 80))
+        self.speed_accuracy_pct = float(speed_config.get("accuracy_pct_threshold", 70))
+        self.session_gap_ms = float(speed_config.get("session_interval_gap_ms", 2000))
+        self.speed_target_sessions = int(speed_config.get("target_sessions", 10))
         self.accuracy_points = {
             "correct": float(accuracy_config.get("correct_points", 1)),
             "incorrect": float(accuracy_config.get("incorrect_points", -2)),
@@ -61,8 +67,10 @@ class WrappedLogger:
             "threshold": float(accuracy_config.get("threshold", 2.5)),
             "min_length": int(accuracy_config.get("min_word_length", 1)),
             "extra_words": accuracy_config.get("extra_words") or [],
+            "languages": accuracy_config.get("languages") or ["en"],
         }
         self.word_checker = WordChecker(**checker_kwargs)
+        self._init_speed_session()
 
     def _load_existing_summary(self):
         if not self.summary_path.exists():
@@ -87,15 +95,29 @@ class WrappedLogger:
                 "word_counts": {},
                 "word_pairs": {},
                 "word_shapes": {},
-                "typing_profile": {
-                    "avg_interval": 0,
-                    "avg_press_length": 0,
-                    "wpm": 0,
-                    "avg_word_shape_samples": 0,
-                    "long_pause_rate": 0,
-                },
-                "word_accuracy": {"score": 0, "correct": 0, "incorrect": 0},
-            }
+            "typing_profile": {
+                "avg_interval": 0,
+                "avg_press_length": 0,
+                "wpm": 0,
+                "avg_word_shape_samples": 0,
+                "long_pause_rate": 0,
+            },
+            "word_accuracy": {"score": 0, "correct": 0, "incorrect": 0},
+            "speed_points": {
+                "earned": 0,
+                "sessions": 0,
+                "last_avg_interval": 0,
+                "last_accuracy_pct": 0,
+                "target_sessions": 0,
+            },
+            "speed_points": {
+                "earned": 0,
+                "sessions": 0,
+                "last_avg_interval": 0,
+                "last_accuracy_pct": 0,
+                "target_sessions": 0,
+            },
+        }
         with open(self.summary_path, "r", encoding="utf-8") as existing:
             try:
                 return json.load(existing)
@@ -129,7 +151,14 @@ class WrappedLogger:
                     "long_pause_rate": 0,
                 },
                 "word_accuracy": {"score": 0, "correct": 0, "incorrect": 0},
-                }
+                "speed_points": {
+                    "earned": 0,
+                    "sessions": 0,
+                    "last_avg_interval": 0,
+                    "last_accuracy_pct": 0,
+                    "target_sessions": 0,
+                },
+            }
 
     def _ensure_schema(self):
         defaults = {
@@ -169,14 +198,17 @@ class WrappedLogger:
     def _record_interval(self, interval_ms):
         if interval_ms <= 0:
             return
-        stats = self.summary.setdefault(
-            "interval_stats", {"count": 0, "total_ms": 0, "max_ms": 0, "min_ms": None}
-        )
+        stats = self.summary.setdefault("interval_stats", {})
+        stats.setdefault("count", 0)
+        stats.setdefault("total_ms", 0)
+        stats.setdefault("max_ms", 0)
+        stats.setdefault("min_ms", None)
         stats["count"] += 1
         stats["total_ms"] += interval_ms
         stats["max_ms"] = max(stats["max_ms"], interval_ms)
         if stats["min_ms"] is None or interval_ms < stats["min_ms"]:
             stats["min_ms"] = interval_ms
+        self._track_session_interval(interval_ms)
 
     def _record_duration(self, key, duration_ms):
         if duration_ms is None:
@@ -266,6 +298,50 @@ class WrappedLogger:
         self._refresh_typing_profile()
         self._persist_summary()
 
+    def _init_speed_session(self):
+        self.session_interval_total = 0.0
+        self.session_interval_count = 0
+        self.session_word_attempts = 0
+        self.session_word_correct = 0
+
+    def _track_session_interval(self, interval_ms):
+        if interval_ms <= 0:
+            return
+        self.session_interval_total += interval_ms
+        self.session_interval_count += 1
+
+    def _score_session_word(self, correct: bool):
+        self.session_word_attempts += 1
+        if correct:
+            self.session_word_correct += 1
+
+    def _commit_speed_session(self):
+        if self.session_interval_count == 0 or self.session_word_attempts == 0:
+            self._init_speed_session()
+            return
+        avg_interval = self.session_interval_total / self.session_interval_count
+        interval_threshold = self.speed_baseline_interval * (self.speed_interval_pct / 100)
+        accuracy_pct = (self.session_word_correct / self.session_word_attempts) * 100
+        points = self.summary.setdefault(
+            "speed_points",
+            {"earned": 0, "sessions": 0, "last_avg_interval": 0, "last_accuracy_pct": 0},
+        )
+        points["sessions"] = points.get("sessions", 0) + 1
+        points["last_avg_interval"] = avg_interval
+        points["last_accuracy_pct"] = accuracy_pct
+        qualifies = avg_interval <= interval_threshold and accuracy_pct >= self.speed_accuracy_pct
+        points_awarded = 1 if qualifies else 0
+        if qualifies:
+            points["earned"] += 1
+        points["target_sessions"] = self.speed_target_sessions
+        result = "passed" if qualifies else "missed"
+        append_debug(
+            f"Speed session {result}: avg {avg_interval:.1f}ms, accuracy {accuracy_pct:.1f}%, "
+            f"points earned {points_awarded}, interval threshold {interval_threshold:.1f}ms, "
+            f"accuracy threshold {self.speed_accuracy_pct}%."
+        )
+        self._init_speed_session()
+
     def _finish_word(self, day_label=None, reset_sequence=False, score_word=True):
         label = day_label or self.current_day_label
         if label is None and self.summary.get("last_event"):
@@ -321,6 +397,9 @@ class WrappedLogger:
             "word_accuracy",
             {"score": 0, "correct": 0, "incorrect": 0},
         )
+        normalized = word.strip()
+        if len(normalized) <= 3:
+            return False
         is_correct = self.word_checker.is_correct(word)
         key = "correct" if is_correct else "incorrect"
         points = self.accuracy_points[key]
@@ -328,6 +407,7 @@ class WrappedLogger:
         score = accuracy.get("score", 0) + points
         score = max(0, min(score, self.accuracy_target))
         accuracy["score"] = score
+        self._score_session_word(is_correct)
         append_debug(f"Word '{word}' earned {points:+} accuracy point(s).")
         return is_correct
 
@@ -368,8 +448,9 @@ class WrappedLogger:
         if self.rage_streak >= 4:
             behaviors["rage_click"] = True
 
-        if interval_ms > 2000:
+        if interval_ms > self.session_gap_ms:
             behaviors["long_pause"] = True
+            self._commit_speed_session()
             self._finish_word(day_label=date_label, reset_sequence=True, score_word=False)
 
         if is_letter:
@@ -429,6 +510,7 @@ class WrappedLogger:
         self._flush_pending_keys()
         self._finish_word(day_label=self.current_day_label, score_word=False)
         self._refresh_typing_profile()
+        self._commit_speed_session()
         self.log_file.close()
         with open(self.summary_path, "w", encoding="utf-8") as summary_file:
             json.dump(self.summary, summary_file, ensure_ascii=False, indent=2)
