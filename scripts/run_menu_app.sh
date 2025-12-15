@@ -9,6 +9,7 @@ MODE="real"
 LOG_MODE=""
 GPT_LOOP=""
 MONITOR_MODE=""
+RESET_STATS=""
 
 cleanup_pidfile() {
   local pidfile="$1"
@@ -36,6 +37,7 @@ trap '
   cleanup
   kill_helpers
 ' EXIT INT TERM
+NO_GPT_LOOP=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --sample)
@@ -46,16 +48,20 @@ while [[ $# -gt 0 ]]; do
       LOG_MODE="--log"
       shift
       ;;
-    --gpt-loop)
-      GPT_LOOP="1"
+    --no-gpt)
+      NO_GPT_LOOP="1"
       shift
       ;;
     --help|-h)
-      echo "Usage: run_menu_app.sh [--sample] [--log] [--gpt-loop] [--monitor]"
+      echo "Usage: run_menu_app.sh [--sample] [--log] [--gpt-loop] [--monitor] [--reset]"
       exit 0
       ;;
     --monitor)
       MONITOR_MODE="1"
+      shift
+      ;;
+    --reset)
+      RESET_STATS="1"
       shift
       ;;
     *)
@@ -105,6 +111,13 @@ else
 fi
 load_api_key
 
+if [[ "$RESET_STATS" == "1" ]]; then
+  echo "Stopping any running helpers before resetting stats..."
+  kill_helpers
+  echo "Resetting daily stats..."
+  python3 scripts/reset_summary.py --mode "$MODE" --root "$KEYBOARD_WRAPPED_ROOT"
+fi
+
 ensure_logger() {
   if [[ "$MODE" == "sample" ]]; then
     return
@@ -127,11 +140,18 @@ ensure_gpt_bridge() {
 }
 
 ensure_logger
-if [[ "$GPT_LOOP" == "1" ]]; then
+if [[ "$NO_GPT_LOOP" != "1" ]]; then
   ensure_gpt_bridge
 else
-  echo "GPT bridge loop not requested; the widget will refresh insights on demand."
+  echo "GPT bridge loop disabled; the widget will use the latest stored insight."
 fi
+
+refresh_gpt_once() {
+  echo "Refreshing GPT insight snapshot..."
+  python3 scripts/widget_gpt.py --mode "$MODE" --once >/tmp/widget_gpt.log 2>&1 || true
+}
+
+refresh_gpt_once
 
 if [[ ! -f "mac-widget/.build/release/KeyboardMonitor" ]]; then
   echo "Build missing, running release build..."
