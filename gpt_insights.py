@@ -11,6 +11,24 @@ try:
 except ImportError:  # pragma: no cover
     openai = None
 
+try:
+    from scripts.configuration import resolve_root, widget_paths
+    from scripts.logger_health import append_debug
+except ImportError:
+    resolve_root = lambda *args, **kwargs: Path.cwd()
+    widget_paths = lambda root, config=None: {"debug": resolve_root(root) / "data/widget_debug.log"}
+    append_debug = lambda *args, **kwargs: None
+
+
+def log_debug(config: Dict[str, Any], message: str):
+    try:
+        root = resolve_root()
+        path = widget_paths(root, config or {}).get("debug")
+        if path:
+            append_debug(message, path)
+    except Exception:
+        pass
+
 CONFIG_PATH = Path("config/app.json")
 DEFAULT_SUMMARY = Path("data/summary.json")
 DEFAULT_SAMPLE_SUMMARY = Path("data/sample_summary.json")
@@ -445,9 +463,9 @@ def call_openai(prompt: str, config: Dict[str, Any]):
         return response.choices[0].message.content
 
     openai.api_key = api_key
-        response = openai.ChatCompletion.create(
-            model=gpt_cfg.get("model", "gpt-4o-mini"),
-            messages=[
+    response = openai.ChatCompletion.create(
+        model=gpt_cfg.get("model", "gpt-4o-mini"),
+        messages=[
                 {
                     "role": "system",
                     "content": "You are a keyboard analyst; be concise and insightful.",
@@ -522,14 +540,17 @@ def run():
         write_meta(meta_path, summary_hash_value, success=False)
         print(f"Wrote fallback insight to {output_path}")
         print("  (No OpenAI API key configured; fallback insight generated from local heuristics.)")
+        log_debug(config, "Fallback insight generated (OpenAI key missing).")
         return
 
     prompt = build_prompt(summary, config)
-    print(f"GPT request stats: prompt {len(prompt)} chars, {len(prompt.encode('utf-8'))} bytes; summary has {len(json.dumps(summary))} chars")
+    log_debug(config, f"GPT request stats: prompt {len(prompt)} chars, body length {len(prompt.encode('utf-8'))}")
+    log_debug(config, f"GPT prompt (mode {mode}): {prompt[:280].replace(os.linesep, ' ')}")
     try:
         raw = call_openai(prompt, config)
         structured = parse_structured_response(raw)
         analysis_text = structured.get("analysis_text") or raw
+        log_debug(config, f"GPT response (mode {mode}): {analysis_text[:280].replace(os.linesep, ' ')}")
     except Exception as exc:
         err_msg = getattr(exc, "args", None)
         print(f"OpenAI request failed: {exc}")
@@ -538,6 +559,7 @@ def run():
         structured = fallback_structured(summary, sample_mode=(mode == "sample"))
         success = False
         print("Generated fallback insight because the OpenAI request did not succeed.")
+        log_debug(config, f"GPT request error (mode {mode}): {exc}")
     else:
         success = True
 
