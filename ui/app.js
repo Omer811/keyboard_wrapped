@@ -1102,7 +1102,23 @@ async function buildGPTCube(container, summary, mode, gptCandidates) {
   try {
     const payload = await fetchGPTInsight(gptCandidates);
     status.textContent = `AI (${mode} mode)`;
-    message.textContent = payload.analysis;
+    const insightText =
+      payload?.analysis_text ||
+      payload?.analysis ||
+      payload?.structured?.analysis_text ||
+      "Insight unavailable right now.";
+    message.textContent = insightText;
+    if (payload?.structured?.insights?.length) {
+      const list = document.createElement("ul");
+      list.className = "gpt-insights";
+      payload.structured.insights.slice(0, 3).forEach((insight) => {
+        const item = document.createElement("li");
+        item.innerHTML = `<strong>${formatStoryTag(insight.tag || "Insight")}</strong>: ${insight.body || insight.title ||
+          "—"}`;
+        list.appendChild(item);
+      });
+      box.appendChild(list);
+    }
   } catch (error) {
     status.textContent = "AI insight missing";
     updateConfigStatus(`AI insight unavailable: ${error.message}`, "error", true);
