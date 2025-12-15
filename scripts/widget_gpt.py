@@ -134,15 +134,23 @@ def run_cycle(
     prompt = build_prompt(snapshot, diff_lines, iteration, mode, previous_snapshot)
     message = fallback_message(snapshot, diff_lines, iteration, mode)
     append_debug(
-        f"GPT prompt (mode {mode}, iteration {iteration}): {prompt[:200].replace(os.linesep, ' ')}",
+        f"GPT prompt (mode {mode}, iteration {iteration}): {prompt[:400].replace(os.linesep, ' ')}",
         debug_path,
     )
     if not dry_run:
         try:
             message = call_openai(prompt, config)
+            append_debug(
+                f"GPT response (iteration {iteration}, mode {mode}): {message[:400].replace(os.linesep, ' ')}",
+                debug_path,
+            )
         except Exception as exc:  # pragma: no cover
             print(f"GPT bridge request failed: {exc}", file=sys.stderr)
             print("Falling back to local message.", file=sys.stderr)
+            append_debug(
+                f"GPT request error (iteration {iteration}, mode {mode}): {exc}",
+                debug_path,
+            )
     write_json(
         feed_path,
         {
