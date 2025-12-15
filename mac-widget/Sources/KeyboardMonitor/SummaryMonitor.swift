@@ -78,6 +78,7 @@ final class SummaryMonitor: ObservableObject {
         let debugLogPath: String
         let accuracyTarget: Double
         let ringSettings: [RingSetting]
+        let handshakeThreshold: Double
 
         static func load() -> WidgetConfig {
             let defaultConfig = WidgetConfig(
@@ -88,7 +89,8 @@ final class SummaryMonitor: ObservableObject {
                 healthPath: "data/widget_health.json",
                 debugLogPath: "data/widget_debug.log",
                 accuracyTarget: 120,
-                ringSettings: RingSetting.defaultSettings
+                ringSettings: RingSetting.defaultSettings,
+                handshakeThreshold: 250
             )
             let configURL = SummaryMonitor.repoRootURL.appending(path: "config/app.json")
             guard
@@ -106,6 +108,7 @@ final class SummaryMonitor: ObservableObject {
             let debug = widget["debug_log_path"] as? String ?? defaultConfig.debugLogPath
             let accuracySettings = raw["word_accuracy"] as? [String: Any] ?? [:]
             let accuracy = accuracySettings["target_score"] as? Double ?? defaultConfig.accuracyTarget
+            let handshakeThreshold = widget["handshake_threshold_ms"] as? Double ?? 250.0
             let ringConfigs = widget["rings"] as? [[String: Any]]
             let rings = RingSetting.merged(defaults: defaultConfig.ringSettings, overrides: ringConfigs)
             return WidgetConfig(
@@ -116,7 +119,8 @@ final class SummaryMonitor: ObservableObject {
                 healthPath: health,
                 debugLogPath: debug,
                 accuracyTarget: accuracy,
-                ringSettings: rings
+                ringSettings: rings,
+                handshakeThreshold: handshakeThreshold
             )
         }
     }
@@ -187,18 +191,44 @@ final class SummaryMonitor: ObservableObject {
     }
 
     func reloadCurrentSummary() {
-        do {
-            let summaryData = try Data(contentsOf: currentMode.summaryURL)
-            let summary = try JSONSerialization.jsonObject(with: summaryData, options: []) as? [String: Any]
-            guard let summary = summary else {
-                throw NSError(domain: "SummaryMonitor", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid summary structure"])
+        let maxAttempts = 3
+        var lastError: Error?
+        for attempt in 1...maxAttempts {
+            do {
+                let summaryData = try Data(contentsOf: currentMode.summaryURL)
+                let summary = try JSONSerialization.jsonObject(with: summaryData, options: []) as? [String: Any]
+                guard let summary = summary else {
+                    throw NSError(
+                        domain: "SummaryMonitor",
+                        code: 1,
+                        userInfo: [NSLocalizedDescriptionKey: "Invalid summary structure"]
+                    )
+                }
+                let normalized = normalizedSummary(summary)
+                updateProgress(from: normalized)
+                return
+            } catch {
+                lastError = error
+                if attempt < maxAttempts && shouldRetrySummaryError(error) {
+                    usleep(120_000) // allow the writer to complete
+                    continue
+                }
+                break
             }
-            let normalized = normalizedSummary(summary)
-            updateProgress(from: normalized)
-        } catch {
-            statusText = "Unable to load summary: \(error.localizedDescription)"
-            writeDebug("Summary reload error: \(error)")
         }
+
+        guard let error = lastError else {
+            return
+        }
+        DispatchQueue.main.async {
+            self.statusText = "Unable to load summary: \(error.localizedDescription)"
+        }
+        writeDebug("Summary reload error: \(error)")
+    }
+
+    private func shouldRetrySummaryError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == NSCocoaErrorDomain && nsError.code == 3840
     }
 
     private func setupSummaryObserver() {
@@ -349,7 +379,7 @@ final class SummaryMonitor: ObservableObject {
 
     private func updateProgress(from summary: [String: Any]) {
         reloadHealthStatus()
-        let stats = SummaryStats.from(summary: summary)
+        let stats = SummaryStats.from(summary: summary, handshakeThreshold: SummaryMonitor.widgetConfig.handshakeThreshold)
         let accuracySummary = summary["word_accuracy"] as? [String: Any] ?? [:]
         let accuracyTarget = SummaryMonitor.widgetConfig.accuracyTarget
         let rawAccuracyScore = accuracySummary["score"] as? Double ?? 0
