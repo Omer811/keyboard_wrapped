@@ -15,7 +15,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 try:
-    from gpt_insights import call_openai
+    from gpt_insights import call_openai, resolve_paths as gpt_insight_paths
 except ModuleNotFoundError as exc:
     DEBUG_LOG = REPO_ROOT / "data" / "widget_debug.log"
     DEBUG_LOG.parent.mkdir(parents=True, exist_ok=True)
@@ -66,6 +66,22 @@ def describe_diff(
         direction = "up" if delta > 0 else "down"
         diffs.append(f"{label} {direction} {abs(delta):.0f}")
     return diffs
+
+
+def _load_cached_insight(config: Dict[str, Any], mode: str, root: Path) -> Optional[str]:
+    try:
+        insight_paths = gpt_insight_paths(config, mode)
+        insight_file = root / insight_paths["output"]
+        if not insight_file.exists():
+            return None
+        data = load_json(insight_file)
+        return (
+            data.get("analysis_text")
+            or data.get("analysis")
+            or (data.get("structured") or {}).get("analysis_text")
+        )
+    except Exception:
+        return None
 
 
 def build_prompt(
@@ -120,6 +136,7 @@ def run_cycle(
     config: Dict[str, Any],
     mode: str,
     dry_run: bool,
+    root: Path,
 ) -> bool:
     if not progress_path.exists():
         return False
@@ -132,12 +149,15 @@ def run_cycle(
     diff_lines = describe_diff(snapshot, previous_snapshot)
     iteration = int(state.get("iteration", 0)) + 1
     prompt = build_prompt(snapshot, diff_lines, iteration, mode, previous_snapshot)
-    message = fallback_message(snapshot, diff_lines, iteration, mode)
-    append_debug(
-        f"GPT prompt (mode {mode}, iteration {iteration}): {prompt[:400].replace(os.linesep, ' ')}",
-        debug_path,
-    )
-    if not dry_run:
+    cached_insight = _load_cached_insight(config, mode, root)
+    if cached_insight:
+        append_debug(f"Reusing cached insight for mode {mode}", debug_path)
+    message = cached_insight or fallback_message(snapshot, diff_lines, iteration, mode)
+    if not dry_run and not cached_insight:
+        append_debug(
+            f"GPT prompt (mode {mode}, iteration {iteration}): {prompt[:400].replace(os.linesep, ' ')}",
+            debug_path,
+        )
         try:
             message = call_openai(prompt, config)
             append_debug(
@@ -189,12 +209,13 @@ def main(argv: Optional[List[str]] = None):
     def cycle():
         return run_cycle(
             paths["progress"],
-            paths["feed"],
-            paths["state"],
+            paths["gpt_feed"],
+            paths["gpt_state"],
             paths["debug"],
             config,
             args.mode,
             args.dry_run,
+            root,
         )
 
     if args.once:

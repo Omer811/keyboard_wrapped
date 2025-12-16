@@ -277,6 +277,7 @@ You are KeyboardAI. Analyze the following keyboard summary data and respond with
 The goal is to close the keyboard rings (keystrokes, speed, balance, accuracy). Mention that mission.
 Address the user directly using "you" (no references to "the writer" or third-person). Keep the response insightful and playful—fun but sharp.
 Provide an "analysis_text" string and an "insights" array.
+Keep the JSON response on a single line (no newline characters).
 Each insight must have "tag", "title", "body" covering:
 - A persona label and why you call the typist that.
 - A keyboard age estimate described humorously, referencing speed/presses/pauses.
@@ -517,6 +518,7 @@ def run():
         )
     output_path = args.output or paths["output"]
     summary = load_json(summary_path)
+    log_debug(config, f"AI insight run started (mode {mode}); summary path {summary_path}")
     summary_hash_value = summary_hash(summary)
     meta_path = insight_meta_path(output_path)
     existing_meta = load_meta(meta_path)
