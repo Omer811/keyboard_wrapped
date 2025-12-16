@@ -130,28 +130,60 @@ ensure_logger() {
   echo $! > mac-widget/.keyboard_logger.pid
 }
 
-ensure_gpt_bridge() {
-  if pgrep -f "widget_gpt.py" >/dev/null; then
-    return
-  fi
-  echo "Starting widget GPT bridge..."
-  nohup python3 scripts/widget_gpt.py --mode "$MODE" >/tmp/widget_gpt.log 2>&1 &
-  echo $! > mac-widget/.widget_gpt.pid
+ensure_progress() {
+  echo "Ensuring widget progress snapshot exists..."
+  python3 - <<PY
+import json
+from pathlib import Path
+from scripts.widget_refresh import persist_widget_progress
+
+root = Path("$KEYBOARD_WRAPPED_ROOT")
+mode = "$MODE"
+summary_path = root / ("data/sample_summary.json" if mode == "sample" else "data/summary.json")
+progress_path = root / "data/widget_progress.json"
+progress_path.parent.mkdir(parents=True, exist_ok=True)
+# persist copy ignoring failures
+try:
+    persist_widget_progress(summary_path, progress_path, mode=mode)
+except Exception as exc:
+    print(f"widget progress sync failed: {exc}")
+PY
 }
 
 ensure_logger
 if [[ "$NO_GPT_LOOP" != "1" ]]; then
-  ensure_gpt_bridge
+  echo "Widget GPT bridge will refresh only when the menu opens."
 else
   echo "GPT bridge loop disabled; the widget will use the latest stored insight."
 fi
 
-refresh_gpt_once() {
-  echo "Refreshing GPT insight snapshot..."
-  python3 scripts/widget_gpt.py --mode "$MODE" --once >/tmp/widget_gpt.log 2>&1 || true
+run_gpt_insight_once() {
+  echo "Generating AI insight via gpt_insights.py (mode $MODE)..."
+  python3 gpt_insights.py --mode "$MODE" >/tmp/gpt_insight.log 2>&1 || true
 }
 
-refresh_gpt_once
+ensure_gpt_feed() {
+  echo "Ensuring widget GPT feed exists..."
+  python3 - <<PY
+import json
+from pathlib import Path
+
+root = Path("$KEYBOARD_WRAPPED_ROOT")
+feed_path = root / "data/widget_gpt_feed.json"
+feed_path.parent.mkdir(parents=True, exist_ok=True)
+if not feed_path.exists():
+    feed_path.write_text(
+        json.dumps(
+            {"timestamp": 0, "mode": "$MODE", "analysis_text": "Awaiting AI insight…", "diff": [], "progress": {}},
+            indent=2,
+        )
+    )
+PY
+}
+
+run_gpt_insight_once
+ensure_progress
+ensure_gpt_feed
 
 if [[ ! -f "mac-widget/.build/release/KeyboardMonitor" ]]; then
   echo "Build missing, running release build..."
