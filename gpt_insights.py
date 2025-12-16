@@ -184,6 +184,40 @@ def format_key_hold_summary(key_holds):
     )
 
 
+DEFAULT_PROMPT_TEMPLATE = textwrap.dedent(
+    """\
+You are KeyboardAI. Analyze the following keyboard summary data and respond with JSON only.
+The goal is to close the keyboard rings (keystrokes, speed, balance, accuracy). Mention that mission.
+Address the user directly using "you" (no references to "the writer" or third-person). Keep the response insightful and playful—fun but sharp.
+Provide an "analysis_text" string and an "insights" array.
+Keep the JSON response on a single line (no newline characters).
+Each insight must have "tag", "title", "body" covering:
+- A persona label and why you call the typist that.
+- A keyboard age estimate described humorously, referencing speed/presses/pauses.
+- Tempo notes (wpm, intervals, long holds) describing how it feels to type like you do.
+- Favorite words with quick commentary and the vibe they create for you.
+- Fastest words with durations, standout days, and layout thoughts for your most fluent transitions.
+
+Return valid JSON only and keep it double-quoted. No markdown wrappers.
+
+Total presses: {total_presses}
+Letters: {letters}, Actions: {actions}
+Rage bursts: {rage_burst_count} (daily high {daily_rage_high})
+Word highlights: {word_highlights}
+Fastest words: {fastest_words}
+Word pairs: top sequences {word_pairs}
+Word day: {word_day_date} (top word {word_day_word})
+Typing speed: {wpm} wpm, avg interval {avg_interval}ms, avg press {avg_press_length}ms, long pause rate {long_pause_pct:.1f}%.
+Word shapes: {word_shapes}
+Word transitions: {word_transitions}
+Key adjacency: {key_adjacency}
+Key dwellers: {key_dwellers}
+Keyboard interface story: Sketch a vivid narrative of how you physically engage the keyboard, leaning on dwell stats and rhythm.
+{ring_goals}
+"""
+)
+
+
 def keyboard_age_from_speed(summary: Dict[str, Any]) -> float:
     profile = typing_profile(summary)
     wpm = profile["wpm"]
@@ -237,7 +271,6 @@ def adjacency_summary(summary: Dict[str, Any], limit=5):
 
 
 def build_prompt(summary: Dict[str, Any], config: Dict[str, Any]):
-    age = keyboard_age_from_speed(summary)
     top = top_words(summary)
     fastest = fastest_words(summary)
     rage = highlight_rage_day(summary)
@@ -248,7 +281,7 @@ def build_prompt(summary: Dict[str, Any], config: Dict[str, Any]):
         sorted_next = sorted(nexts.items(), key=lambda item: item[1], reverse=True)
         if sorted_next:
             pairs.append(f"{from_word}->{sorted_next[0][0]}")
-    pairs = pairs[:3]
+    pairs_text = ", ".join(pairs[:3]) or "—"
 
     typing = typing_profile(summary)
     shapes = summarize_word_shapes(summary, limit=4)
@@ -261,7 +294,7 @@ def build_prompt(summary: Dict[str, Any], config: Dict[str, Any]):
     key_goal = max(0, 5000 - summary.get("total_events", 0))
     interval = typing.get("avg_interval", 0)
     speed_wpm = typing.get("wpm", 0)
-    task_info = textwrap.dedent(
+    ring_goals = textwrap.dedent(
         f"""\
         Ring goals:
         - Keystrokes: {key_goal} more presses to hit the 5,000-stroke ring.
@@ -271,38 +304,39 @@ def build_prompt(summary: Dict[str, Any], config: Dict[str, Any]):
         Give at least one unique action step to close these goals.
         """
     )
-    prompt = textwrap.dedent(
-        f"""\
-You are KeyboardAI. Analyze the following keyboard summary data and respond with JSON only.
-The goal is to close the keyboard rings (keystrokes, speed, balance, accuracy). Mention that mission.
-Address the user directly using "you" (no references to "the writer" or third-person). Keep the response insightful and playful—fun but sharp.
-Provide an "analysis_text" string and an "insights" array.
-Keep the JSON response on a single line (no newline characters).
-Each insight must have "tag", "title", "body" covering:
-- A persona label and why you call the typist that.
-- A keyboard age estimate described humorously, referencing speed/presses/pauses.
-- Tempo notes (wpm, intervals, long holds) describing how it feels to type like you do.
-- Favorite words with quick commentary and the vibe they create for you.
-- Fastest words with durations, standout days, and layout thoughts for your most fluent transitions.
 
-Return valid JSON only and keep it double-quoted. No markdown wrappers.
+    context = {
+        "total_presses": summary.get("total_events", 0),
+        "letters": summary.get("letters", 0),
+        "actions": summary.get("actions", 0),
+        "rage_burst_count": summary.get("rage_clicks", 0),
+        "daily_rage_high": rage[1] if rage else 0,
+        "word_highlights": ", ".join(word for word, _ in top[:3]) or "—",
+        "fastest_words": ", ".join(f"{word} ({duration}ms)" for word, duration in fastest) or "—",
+        "word_pairs": pairs_text,
+        "word_day_date": word_day["date"] if word_day else "—",
+        "word_day_word": word_day["topWord"] if word_day else "—",
+        "wpm": typing.get("wpm", 0),
+        "avg_interval": typing.get("avg_interval", 0),
+        "avg_press_length": typing.get("avg_press_length", 0),
+        "long_pause_pct": typing.get("long_pause_rate", 0) * 100,
+        "word_shapes": ", ".join(shapes) if shapes else "—",
+        "word_transitions": ", ".join(transitions) if transitions else "—",
+        "key_adjacency": ", ".join(adjacencies) if adjacencies else "—",
+        "key_dwellers": hold_text,
+        "ring_goals": ring_goals,
+    }
 
-Total presses: {summary.get('total_events')}
-Letters: {summary.get('letters')}, Actions: {summary.get('actions')}
-Rage bursts: {summary.get('rage_clicks')} (daily high {rage[1] if rage else 0})
-Word highlights: {', '.join(word for word, _ in top[:3])}
-Fastest words: {', '.join(f"{word} ({duration}ms)" for word, duration in fastest)}
-Word pairs: top sequences {', '.join(pairs)}
-Word day: {word_day['date'] if word_day else '—'} (top word {word_day['topWord'] if word_day else '—'})
-Typing speed: {typing['wpm']} wpm, avg interval {typing['avg_interval']}ms, avg press {typing['avg_press_length']}ms, long pause rate {typing['long_pause_rate'] * 100:.1f}%.
-Word shapes: {', '.join(shapes) if shapes else '—'}
-Word transitions: {', '.join(transitions) if transitions else '—'}
-Key adjacency: {', '.join(adjacencies) if adjacencies else '—'}
-Key dwellers: {hold_text}
-Keyboard interface story: Sketch a vivid narrative of how you physically engage the keyboard, leaning on dwell stats and rhythm.
-{task_info}
-"""
-    )
+    base_prompt = DEFAULT_PROMPT_TEMPLATE.format(**context)
+    extra_template = config.get("gpt", {}).get("prompt_extra", "").strip()
+    if extra_template:
+        try:
+            extra = extra_template.format(**context)
+        except Exception:
+            extra = extra_template
+        prompt = base_prompt + "\n" + extra
+    else:
+        prompt = base_prompt
     return prompt
 
 

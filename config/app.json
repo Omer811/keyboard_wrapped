@@ -8,7 +8,8 @@
   },
   "gpt": {
     "model": "gpt-4o-mini",
-    "temperature": 0.7
+    "temperature": 0.7,
+    "prompt_extra": "Please relate to the data above when crafting the punchline, and treat this as additional context."
   },
   "ui_text": {
     "hero_eyebrow": "",
