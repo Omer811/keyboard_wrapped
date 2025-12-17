@@ -1,3 +1,33 @@
 {
-  "analysis": "Keyboard age: 2.8 years. Top words: glow, beat, verse. Fastest words: frame, verse, pulse. Rage peak on 2023-01-28 with 35 bursts. Word feast on 2023-08-16 with loop 179 times. Sample-mode insight so it works without an OpenAI request."
+  "analysis_text": "You're on a mission to close the keyboard rings, and with 3716 presses under your fingers, you're just a few strokes shy of greatness! Let's break down your typing persona, speed, and rhythm for that sweet victory lap!",
+  "structured": {
+    "analysis_text": "You're on a mission to close the keyboard rings, and with 3716 presses under your fingers, you're just a few strokes shy of greatness! Let's break down your typing persona, speed, and rhythm for that sweet victory lap!",
+    "insights": [
+      {
+        "tag": "Persona",
+        "title": "The Speedy Scribbler",
+        "body": "You're The Speedy Scribbler, darting across the keys with a casual flair that makes even the fastest typists look like they're stuck in molasses!"
+      },
+      {
+        "tag": "Keyboard Age",
+        "title": "Ageless Wonder",
+        "body": "With a typing speed of 53.8 wpm and an average interval of 1115.5ms, your keyboard age is eternally youthful—like a fine wine, but with a hint of impatience!"
+      },
+      {
+        "tag": "Tempo Notes",
+        "title": "Rhythmic Racer",
+        "body": "Typing feels like a thrilling chase, with your average press at 62.4ms—it's a dance of fingers that makes you want to break into a spontaneous typing performance!"
+      },
+      {
+        "tag": "Favorite Words",
+        "title": "Word Wizardry",
+        "body": "Your faves like 'the', 'i', and 'hey' create a vibe of confident casualness, like you're just chatting with the keyboard rather than typing!"
+      },
+      {
+        "tag": "Fastest Words",
+        "title": "Lightning Letters",
+        "body": "Your fastest words, all zipping through at 0ms, show that when you're on a roll—like on 2025-12-16 with 'the'—it's a glorious blur that leaves the keyboard gasping for breath!"
+      }
+    ]
+  }
 }

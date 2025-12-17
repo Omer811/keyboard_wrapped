@@ -26,11 +26,12 @@ Netlify runs the command defined in `netlify.toml`, which copies `config/app.jso
 
 ## Menu-bar companion
 
-The `mac-widget` executable is a tiny Swift status-bar helper that reads the same `data/summary.json` (or `data/sample_summary.json` when you pass `scripts/run_menu_app.sh --sample`) so you get synchronized rings inside macOS’ menu bar. Build it with `scripts/build_menu_app.sh`, then launch with `scripts/run_menu_app.sh` (pass `--sample` to switch modes). The launcher now ships three helpful flags:
+The `mac-widget` executable is a tiny Swift status-bar helper that reads the same `data/summary.json` (or `data/sample_summary.json` when you pass `scripts/run_menu_app.sh --sample`) so you get synchronized rings inside macOS’ menu bar. Build it with `scripts/build_menu_app.sh`, then launch with `scripts/run_menu_app.sh` (pass `--sample` to switch modes). The launcher now ships helpful flags:
 
 - `--log` enables detailed keystroke logging so you can trace every capture inside `data/widget_debug.log`.
 - `--gpt-loop` keeps the GPT bridge running in the background if you want a steady narration in addition to the on-open refresh.
 - `--monitor` flips the widget into a monitoring overlay: it exposes the raw `widget_debug.log` tail, the GPT iteration/connectivity chatter, and the handshake diagnostics. Without `--monitor` the UI stays streamlined—no debug cards, no GPT iteration noise—but you still get the same enlarged AI insight card and the new keyboard balance hint so the counters feel more polished.
+- `--reset` runs `scripts/reset_summary.py --mode <real|sample>` before the widget boots, clearing both `data/summary.json` (or the sample variant) and `data/widget_progress.json` so your demo rings and accuracy bar start from zero every time.
 
 The script now also cleans up the logger/GPT helper PIDs when you close the menu app, so kill switches and terminal terminations don’t leave background listeners chewing on your keys.
 
@@ -65,5 +66,5 @@ Use `visual.layout_show_prev_keys` and `visual.layout_show_next_keys` in `config
 To reset the daily activity/rage/word counters before showing off the UI, run:
 
 ```bash
-python3 scripts/reset_summary.py --summary data/summary.json
+python3 scripts/reset_summary.py --summary data/summary.json --progress data/widget_progress.json --mode real
 ```

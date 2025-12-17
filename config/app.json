@@ -6,10 +6,18 @@
     "real_gpt": "data/gpt_insights.json",
     "sample_gpt": "data/sample_gpt_insight.json"
   },
+  "rings": [
+    { "key": "keystrokes", "title": "Keystrokes", "accent": "orange" },
+    { "key": "speed", "title": "Speed", "accent": "blue" },
+    { "key": "balance", "title": "Balance", "accent": "green" },
+    { "key": "accuracy", "title": "Accuracy", "accent": "purple" }
+  ]
+  ,
   "gpt": {
     "model": "gpt-4o-mini",
     "temperature": 0.7,
-    "prompt_extra": "Please relate to the data above when crafting the punchline, and treat this as additional context."
+    "prompt_extra": "Please relate to the data above when crafting the punchline, and treat this as additional context.",
+    "ring_prompt_template": ""
   },
   "ui_text": {
     "hero_eyebrow": "",
@@ -57,7 +65,23 @@
     "gpt_poll_interval": 4,
     "health_path": "data/widget_health.json",
     "debug_log_path": "data/widget_debug.log",
-    "handshake_threshold_ms": 250
+    "handshake_threshold_ms": 250,
+    "notifications_enabled": false,
+    "ring_animations_enabled": true,
+    "ring_targets": {
+      "keystrokes": 10000,
+      "speed": 200,
+      "balance": 120,
+      "accuracy": 240
+    }
+  },
+  "notifications": {
+    "ring_milestones": true,
+    "speed_streaks": true,
+    "keystroke_milestone": {
+      "enabled": true,
+      "interval": 100
+    }
   },
   "groups": [
     { "id": "core", "label": "Core Pulse" },

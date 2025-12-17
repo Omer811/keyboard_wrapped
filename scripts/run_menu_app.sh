@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 export KEYBOARD_WRAPPED_ROOT="$(pwd)"
+PYTHON_BIN="${PYTHON_BIN:-$(command -v python3)}"
+export KEYBOARD_WRAPPED_PYTHON="$PYTHON_BIN"
 
 MODE="real"
 LOG_MODE=""
@@ -159,12 +161,12 @@ fi
 
 run_gpt_insight_once() {
   echo "Generating AI insight via gpt_insights.py (mode $MODE)..."
-  python3 gpt_insights.py --mode "$MODE" >/tmp/gpt_insight.log 2>&1 || true
+  "$PYTHON_BIN" gpt_insights.py --mode "$MODE" >/tmp/gpt_insight.log 2>&1 || true
 }
 
 ensure_gpt_feed() {
   echo "Ensuring widget GPT feed exists..."
-  python3 - <<PY
+  "$PYTHON_BIN" - <<PY
 import json
 from pathlib import Path
 

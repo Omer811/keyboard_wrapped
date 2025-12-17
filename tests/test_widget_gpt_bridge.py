@@ -79,7 +79,6 @@ def test_widget_gpt_bridge_logs_prompt_and_response(tmp_path: Path, monkeypatch)
         config,
         "real",
         dry_run=False,
-        root=tmp_path,
     )
 
     assert result is True
@@ -110,7 +109,6 @@ def test_widget_gpt_bridge_logs_error_and_fallback(tmp_path: Path, monkeypatch):
         config,
         "real",
         dry_run=False,
-        root=tmp_path,
     )
 
     assert result is True

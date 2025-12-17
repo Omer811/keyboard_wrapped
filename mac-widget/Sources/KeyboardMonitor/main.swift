@@ -146,7 +146,9 @@ struct StatusBarView: View {
                     title: ring.title,
                     progress: monitor.progressValue(for: ring.key),
                     accent: monitor.accentColor(for: ring.accent),
-                    target: monitor.targetValue(for: ring.key)
+                    target: monitor.targetValue(for: ring.key),
+                    animate: monitor.ringAnimationsEnabled,
+                    pulseID: monitor.ringPulseTriggers[ring.key]
                 )
             }
             if monitor.monitorModeEnabled {
@@ -178,11 +180,9 @@ struct StatusBarView: View {
             }
             Divider()
             VStack(alignment: .leading, spacing: 6) {
-                Text("AI Insight")
-                    .font(.subheadline)
-                    .bold()
-                Text(monitor.aiInsight)
-                    .font(.footnote)
+                Text(monitor.aiInsight.isEmpty ? "Awaiting AI insight…" : monitor.aiInsight)
+                    .font(.callout)
+                    .fontWeight(.semibold)
                     .foregroundColor(.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineLimit(nil)
@@ -208,6 +208,9 @@ struct RingRow: View {
     let progress: Double
     let accent: Color
     let target: Double
+    let animate: Bool
+    let pulseID: UUID?
+    @State private var animatePulse = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -220,6 +223,8 @@ struct RingRow: View {
                     .stroke(accent, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .frame(width: 48, height: 48)
+                    .scaleEffect(animate && animatePulse ? 1.08 : 1)
+                    .animation(animate ? .easeInOut(duration: 0.25) : .none, value: animatePulse)
                 Text("\(Int(progress))")
                     .font(.caption)
                     .foregroundColor(.primary)
@@ -230,6 +235,13 @@ struct RingRow: View {
                 Text("\(Int(progress)) / \(Int(target))")
                     .font(.caption2)
                     .foregroundColor(.secondary)
+            }
+        }
+        .onChange(of: pulseID) { _ in
+            guard animate else { return }
+            animatePulse = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                animatePulse = false
             }
         }
     }
